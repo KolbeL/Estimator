@@ -287,24 +287,31 @@ document.addEventListener('alpine:init', () => {
 
         </div>`;
 
-      const tpl = document.getElementById('pdf-template');
-      tpl.innerHTML = html;
-      // html2canvas cannot capture off-screen elements — bring it into the viewport
-      tpl.style.cssText = 'display:block; position:fixed; top:0; left:0; width:8.5in; background:white; z-index:-1; pointer-events:none;';
-
       const safeName = e.customerName.replace(/[^a-z0-9]/gi, '_');
-      const filename = `Estimate_${safeName}_${e.estimateDate || 'draft'}.pdf`;
+      const title = `Estimate_${safeName}_${e.estimateDate || 'draft'}`;
 
-      html2pdf().set({
-        margin: 0,
-        filename,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 816 },
-        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-      }).from(tpl).save().then(() => {
-        tpl.style.cssText = 'display:none;';
-        tpl.innerHTML = '';
-      });
+      const printWindow = window.open('', '_blank', 'width=900,height=700');
+      printWindow.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>${title}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; padding: 0; font-family: Arial, sans-serif; color: #222; background: white; }
+    table { border-collapse: collapse; }
+    @media print {
+      @page { size: letter; margin: 0.5in; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>${html}</body>
+</html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      // Brief delay lets the browser finish layout before the print dialog opens
+      setTimeout(() => { printWindow.print(); }, 400);
     }
   }));
 });
