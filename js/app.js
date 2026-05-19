@@ -151,7 +151,13 @@ document.addEventListener('alpine:init', () => {
       if (s.logo) {
         try {
           const fmt = s.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG';
-          doc.addImage(s.logo, fmt, PW - M - 130, y, 130, 52);
+          const img = new Image();
+          img.src = s.logo;
+          const maxW = 130, maxH = 60;
+          const ratio = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
+          const lw = img.naturalWidth * ratio;
+          const lh = img.naturalHeight * ratio;
+          doc.addImage(s.logo, fmt, PW - M - lw, y, lw, lh);
         } catch (_) {}
       }
 
@@ -245,7 +251,7 @@ document.addEventListener('alpine:init', () => {
           ]),
           foot,
           headStyles: { fillColor: GREEN, textColor: 255, fontSize: 10, fontStyle: 'bold' },
-          footStyles: { fillColor: LT_GREEN, fontSize: 10 },
+          footStyles: { fillColor: LT_GREEN, textColor: [30, 30, 30], fontSize: 10 },
           bodyStyles: { fontSize: 10 },
           columnStyles: { 0: { cellWidth: CW*0.46 }, 1: { cellWidth: CW*0.14 }, 2: { cellWidth: CW*0.2 }, 3: { cellWidth: CW*0.2 } }
         });
@@ -279,7 +285,7 @@ document.addEventListener('alpine:init', () => {
           ]),
           foot,
           headStyles: { fillColor: AMBER, textColor: 255, fontSize: 10, fontStyle: 'bold' },
-          footStyles: { fillColor: LT_GREEN, fontSize: 10 },
+          footStyles: { fillColor: LT_GREEN, textColor: [30, 30, 30], fontSize: 10 },
           bodyStyles: { fontSize: 10 },
           columnStyles: { 0: { cellWidth: CW*0.46 }, 1: { cellWidth: CW*0.14 }, 2: { cellWidth: CW*0.2 }, 3: { cellWidth: CW*0.2 } }
         });
@@ -316,7 +322,7 @@ document.addEventListener('alpine:init', () => {
             { content: money(this.miscTotal()), styles: { halign: 'right', fontStyle: 'bold' } }
           ]],
           headStyles: { fillColor: GREEN, textColor: 255, fontSize: 10, fontStyle: 'bold' },
-          footStyles: { fillColor: LT_GREEN, fontSize: 10 },
+          footStyles: { fillColor: LT_GREEN, textColor: [30, 30, 30], fontSize: 10 },
           bodyStyles: { fontSize: 10 },
           columnStyles: { 0: { cellWidth: CW*0.8 }, 1: { cellWidth: CW*0.2 } }
         });
