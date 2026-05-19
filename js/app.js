@@ -333,10 +333,10 @@ document.addEventListener('alpine:init', () => {
       doc.autoTable({
         startY: y, margin: { left: M, right: M }, tableWidth: CW,
         body: [[
-          { content: 'TOTAL ESTIMATE', styles: { fontStyle: 'bold', fontSize: 13 } },
-          { content: money(this.grandTotal()), styles: { fontStyle: 'bold', fontSize: 13, halign: 'right' } }
+          { content: 'TOTAL ESTIMATE' },
+          { content: money(this.grandTotal()), styles: { halign: 'right' } }
         ]],
-        bodyStyles: { fillColor: GREEN, textColor: 255, cellPadding: { top: 10, bottom: 10, left: 12, right: 12 } },
+        bodyStyles: { fillColor: GREEN, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 13, cellPadding: { top: 10, bottom: 10, left: 12, right: 12 } },
         columnStyles: { 0: { cellWidth: CW*0.7 }, 1: { cellWidth: CW*0.3 } }
       });
       y = doc.lastAutoTable.finalY + 14;
