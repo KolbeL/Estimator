@@ -13,7 +13,8 @@
 <body x-data="estimatorApp()" x-init="init()" x-cloak>
 
   <!-- Navbar -->
-  <nav class="navbar navbar-dark px-3 py-2 mb-4">
+  <nav class="navbar px-3 py-2 mb-4"
+    :class="isLightColor(settings.primaryColor || '#2e7d32') ? 'navbar-light' : 'navbar-dark'">
     <span class="navbar-brand fw-bold fs-5">
       <i class="bi bi-flower1 me-1"></i> Quick Landscaping Estimator
     </span>
@@ -36,7 +37,7 @@
 
     <!-- Client Information -->
     <div class="card mb-4">
-      <div class="card-header bg-success text-white py-2">
+      <div class="card-header bg-primary-theme py-2">
         <h6 class="mb-0"><i class="bi bi-person-fill me-1"></i>Client Information</h6>
       </div>
       <div class="card-body">
@@ -64,7 +65,7 @@
 
     <!-- Scope of Work -->
     <div class="card mb-4">
-      <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
+      <div class="card-header bg-primary-theme py-2 d-flex justify-content-between align-items-center">
         <h6 class="mb-0"><i class="bi bi-list-check me-1"></i>Scope of Work</h6>
         <button class="btn btn-light btn-sm py-0 px-2" @click="addScopeItem()">
           <i class="bi bi-plus-circle me-1"></i>Add Item
@@ -113,7 +114,7 @@
 
     <!-- Timing -->
     <div class="card mb-4">
-      <div class="card-header bg-success text-white py-2">
+      <div class="card-header bg-primary-theme py-2">
         <h6 class="mb-0"><i class="bi bi-calendar-range me-1"></i>Estimated Timing</h6>
       </div>
       <div class="card-body">
@@ -132,7 +133,7 @@
 
     <!-- Materials -->
     <div class="card mb-4">
-      <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
+      <div class="card-header bg-primary-theme py-2 d-flex justify-content-between align-items-center">
         <h6 class="mb-0"><i class="bi bi-boxes me-1"></i>Materials</h6>
         <button class="btn btn-light btn-sm py-0 px-2" @click="addMaterial()">
           <i class="bi bi-plus-circle me-1"></i>Add Row
@@ -196,12 +197,12 @@
 
     <!-- Machinery -->
     <div class="card mb-4">
-      <div class="card-header bg-warning py-2 d-flex justify-content-between align-items-center">
+      <div class="card-header bg-accent-theme py-2 d-flex justify-content-between align-items-center">
         <h6 class="mb-0">
           <i class="bi bi-truck me-1"></i>Machinery Rentals
           <span class="badge bg-secondary ms-1" style="font-size:.65rem">Optional</span>
         </h6>
-        <button class="btn btn-dark btn-sm py-0 px-2" @click="addMachinery()">
+        <button class="btn btn-light btn-sm py-0 px-2" @click="addMachinery()">
           <i class="bi bi-plus-circle me-1"></i>Add Row
         </button>
       </div>
@@ -263,7 +264,7 @@
 
     <!-- Labor -->
     <div class="card mb-4">
-      <div class="card-header bg-success text-white py-2">
+      <div class="card-header bg-primary-theme py-2">
         <h6 class="mb-0"><i class="bi bi-person-workspace me-1"></i>Labor</h6>
       </div>
       <div class="card-body">
@@ -301,7 +302,7 @@
 
     <!-- Miscellaneous -->
     <div class="card mb-4">
-      <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
+      <div class="card-header bg-primary-theme py-2 d-flex justify-content-between align-items-center">
         <h6 class="mb-0">
           <i class="bi bi-receipt me-1"></i>Miscellaneous
           <span class="badge bg-light text-dark ms-1" style="font-size:.65rem">Optional</span>
@@ -379,7 +380,7 @@
   <!-- ===================== SETTINGS VIEW ===================== -->
   <div x-show="currentView === 'settings'" class="container py-2" style="max-width:860px;">
     <div class="card">
-      <div class="card-header bg-success text-white py-2">
+      <div class="card-header bg-primary-theme py-2">
         <h6 class="mb-0"><i class="bi bi-gear me-1"></i>Template Settings</h6>
       </div>
       <div class="card-body">
@@ -422,6 +423,25 @@
               </div>
               <div class="form-text">Set to 0 to disable tax.</div>
             </div>
+
+            <h6 class="text-muted text-uppercase small fw-bold mb-3 mt-2">Theme Colors</h6>
+            <div class="row g-3 mb-1">
+              <div class="col">
+                <label class="form-label">Primary Color
+                  <span class="text-muted fw-normal">(headers, buttons)</span>
+                </label>
+                <input type="color" class="form-control form-control-color"
+                  x-model="settings.primaryColor" />
+              </div>
+              <div class="col">
+                <label class="form-label">Accent Color
+                  <span class="text-muted fw-normal">(machinery section)</span>
+                </label>
+                <input type="color" class="form-control form-control-color"
+                  x-model="settings.accentColor" />
+              </div>
+            </div>
+            <div class="form-text mb-3">Light variants and text contrast are derived automatically.</div>
           </div>
 
           <!-- Logo + T&C -->

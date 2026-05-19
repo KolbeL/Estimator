@@ -27,6 +27,8 @@ document.addEventListener('alpine:init', () => {
       website: '',
       licenseNumbers: '',
       taxRate: 0,
+      primaryColor: '#2e7d32',
+      accentColor:  '#f9a825',
       logo: null,
       termsAndConditions: ''
     },
@@ -36,6 +38,51 @@ document.addEventListener('alpine:init', () => {
       if (saved) {
         try { Object.assign(this.settings, JSON.parse(saved)); } catch (_) {}
       }
+      this.applyTheme();
+      this.$watch('settings.primaryColor', () => this.applyTheme());
+      this.$watch('settings.accentColor',  () => this.applyTheme());
+    },
+
+    // --- Color utilities ---
+    hexToRgb(hex) {
+      const h = (hex || '#000000').replace('#', '');
+      return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)];
+    },
+    mixWithWhite(rgb, factor) { // factor = 0→white, 1→original
+      return rgb.map(c => Math.round(c * factor + 255 * (1 - factor)));
+    },
+    rgbToHex(rgb) {
+      return '#' + rgb.map(c => Math.min(255, Math.max(0, c)).toString(16).padStart(2,'0')).join('');
+    },
+    luminance(rgb) {
+      return rgb.map(c => {
+        c /= 255;
+        return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      }).reduce((sum, c, i) => sum + c * [0.2126, 0.7152, 0.0722][i], 0);
+    },
+    isLightColor(hex) {
+      return this.luminance(this.hexToRgb(hex)) > 0.35;
+    },
+    contrastText(hex) {
+      return this.isLightColor(hex) ? '#1a1a1a' : '#ffffff';
+    },
+    applyTheme() {
+      const p = this.settings.primaryColor || '#2e7d32';
+      const a = this.settings.accentColor  || '#f9a825';
+      const pRgb = this.hexToRgb(p);
+      const aRgb = this.hexToRgb(a);
+      const pLight  = this.rgbToHex(this.mixWithWhite(pRgb, 0.2));
+      const pVlight = this.rgbToHex(this.mixWithWhite(pRgb, 0.09));
+      const pText   = this.contrastText(p);
+      const aText   = this.contrastText(a);
+      const r = document.documentElement;
+      r.style.setProperty('--theme-primary',        p);
+      r.style.setProperty('--theme-primary-rgb',    pRgb.join(', '));
+      r.style.setProperty('--theme-primary-light',  pLight);
+      r.style.setProperty('--theme-primary-vlight', pVlight);
+      r.style.setProperty('--theme-primary-text',   pText);
+      r.style.setProperty('--theme-accent',         a);
+      r.style.setProperty('--theme-accent-text',    aText);
     },
 
     // --- Scope drag-and-drop (native HTML5) ---
@@ -160,10 +207,12 @@ document.addEventListener('alpine:init', () => {
       const M   = 40;
       const CW  = PW - M * 2;
 
-      const GREEN    = [46, 125, 50];
-      const LT_GREEN = [232, 245, 233];
-      const VLT      = [241, 248, 233];
-      const AMBER    = [249, 168, 37];
+      const GREEN    = this.hexToRgb(s.primaryColor || '#2e7d32');
+      const LT_GREEN = this.mixWithWhite(GREEN, 0.2);
+      const VLT      = this.mixWithWhite(GREEN, 0.09);
+      const AMBER    = this.hexToRgb(s.accentColor  || '#f9a825');
+      const GREEN_TEXT  = this.isLightColor(s.primaryColor || '#2e7d32') ? [26,26,26] : [255,255,255];
+      const AMBER_TEXT  = this.isLightColor(s.accentColor  || '#f9a825') ? [26,26,26] : [255,255,255];
       const GRAY     = [110, 110, 110];
 
       const money = (n) => '$' + (+(n) || 0).toFixed(2);
@@ -249,7 +298,7 @@ document.addEventListener('alpine:init', () => {
             { content: i.title || '', styles: { fontStyle: 'bold' } },
             i.description || ''
           ]),
-          headStyles: { fillColor: GREEN, textColor: 255, fontSize: 10, fontStyle: 'bold' },
+          headStyles: { fillColor: GREEN, textColor: GREEN_TEXT, fontSize: 10, fontStyle: 'bold' },
           bodyStyles: { fontSize: 10 },
           columnStyles: { 0: { cellWidth: CW * 0.3 }, 1: { cellWidth: CW * 0.7 } }
         });
@@ -282,7 +331,7 @@ document.addEventListener('alpine:init', () => {
             { content: money((+m.qty||0)*(+m.unitPrice||0)),         styles: { halign: 'right', fontStyle: 'bold' } }
           ]),
           foot,
-          headStyles: { fillColor: GREEN, textColor: 255, fontSize: 10, fontStyle: 'bold' },
+          headStyles: { fillColor: GREEN, textColor: GREEN_TEXT, fontSize: 10, fontStyle: 'bold' },
           footStyles: { fillColor: LT_GREEN, textColor: [30, 30, 30], fontSize: 10 },
           bodyStyles: { fontSize: 10 },
           columnStyles: { 0: { cellWidth: CW*0.46 }, 1: { cellWidth: CW*0.14 }, 2: { cellWidth: CW*0.2 }, 3: { cellWidth: CW*0.2 } }
@@ -316,7 +365,7 @@ document.addEventListener('alpine:init', () => {
             { content: money((+m.duration||0)*(+m.rate||0)),         styles: { halign: 'right', fontStyle: 'bold' } }
           ]),
           foot,
-          headStyles: { fillColor: AMBER, textColor: 255, fontSize: 10, fontStyle: 'bold' },
+          headStyles: { fillColor: AMBER, textColor: AMBER_TEXT, fontSize: 10, fontStyle: 'bold' },
           footStyles: { fillColor: LT_GREEN, textColor: [30, 30, 30], fontSize: 10 },
           bodyStyles: { fontSize: 10 },
           columnStyles: { 0: { cellWidth: CW*0.46 }, 1: { cellWidth: CW*0.14 }, 2: { cellWidth: CW*0.2 }, 3: { cellWidth: CW*0.2 } }
@@ -353,7 +402,7 @@ document.addEventListener('alpine:init', () => {
             { content: 'Subtotal', styles: { halign: 'right', fontStyle: 'bold' } },
             { content: money(this.miscTotal()), styles: { halign: 'right', fontStyle: 'bold' } }
           ]],
-          headStyles: { fillColor: GREEN, textColor: 255, fontSize: 10, fontStyle: 'bold' },
+          headStyles: { fillColor: GREEN, textColor: GREEN_TEXT, fontSize: 10, fontStyle: 'bold' },
           footStyles: { fillColor: LT_GREEN, textColor: [30, 30, 30], fontSize: 10 },
           bodyStyles: { fontSize: 10 },
           columnStyles: { 0: { cellWidth: CW*0.8 }, 1: { cellWidth: CW*0.2 } }
@@ -367,9 +416,9 @@ document.addEventListener('alpine:init', () => {
         theme: 'plain',
         body: [[
           { content: 'TOTAL ESTIMATE' },
-          { content: money(this.grandTotal()), styles: { halign: 'right', textColor: [255, 255, 255] } }
+          { content: money(this.grandTotal()), styles: { halign: 'right', textColor: GREEN_TEXT } }
         ]],
-        bodyStyles: { fillColor: GREEN, textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 13, cellPadding: { top: 10, bottom: 10, left: 12, right: 12 } },
+        bodyStyles: { fillColor: GREEN, textColor: GREEN_TEXT, fontStyle: 'bold', fontSize: 13, cellPadding: { top: 10, bottom: 10, left: 12, right: 12 } },
         columnStyles: { 0: { cellWidth: CW*0.7 }, 1: { cellWidth: CW*0.3 } }
       });
       y = doc.lastAutoTable.finalY + 14;
