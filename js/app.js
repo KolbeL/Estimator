@@ -312,9 +312,10 @@ document.addEventListener('alpine:init', () => {
           { content: money(matSub), styles: { halign: 'right', fontStyle: 'bold' } }
         ]];
         if (taxRate > 0) {
+          const taxPad = { top: 1, bottom: 1, left: 6, right: 6 };
           foot.push([
-            { content: `Tax (${taxRate}%)`, colSpan: 3, styles: { halign: 'right', textColor: GRAY } },
-            { content: money(matTax), styles: { halign: 'right', textColor: GRAY } }
+            { content: `Tax (${taxRate}%)`, colSpan: 3, styles: { halign: 'right', textColor: GRAY, fontSize: 9, cellPadding: taxPad } },
+            { content: money(matTax),        styles: { halign: 'right', textColor: GRAY, fontSize: 9, cellPadding: taxPad } }
           ]);
           foot.push([
             { content: 'Total with Tax', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
@@ -346,9 +347,10 @@ document.addEventListener('alpine:init', () => {
           { content: money(machSub), styles: { halign: 'right', fontStyle: 'bold' } }
         ]];
         if (taxRate > 0) {
+          const taxPad = { top: 1, bottom: 1, left: 6, right: 6 };
           foot.push([
-            { content: `Tax (${taxRate}%)`, colSpan: 3, styles: { halign: 'right', textColor: GRAY } },
-            { content: money(machTax), styles: { halign: 'right', textColor: GRAY } }
+            { content: `Tax (${taxRate}%)`, colSpan: 3, styles: { halign: 'right', textColor: GRAY, fontSize: 9, cellPadding: taxPad } },
+            { content: money(machTax),       styles: { halign: 'right', textColor: GRAY, fontSize: 9, cellPadding: taxPad } }
           ]);
           foot.push([
             { content: 'Total with Tax', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
