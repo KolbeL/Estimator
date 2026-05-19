@@ -289,7 +289,8 @@ document.addEventListener('alpine:init', () => {
 
       const tpl = document.getElementById('pdf-template');
       tpl.innerHTML = html;
-      tpl.style.display = 'block';
+      // html2canvas cannot capture off-screen elements — bring it into the viewport
+      tpl.style.cssText = 'display:block; position:fixed; top:0; left:0; width:8.5in; background:white; z-index:-1; pointer-events:none;';
 
       const safeName = e.customerName.replace(/[^a-z0-9]/gi, '_');
       const filename = `Estimate_${safeName}_${e.estimateDate || 'draft'}.pdf`;
@@ -298,10 +299,10 @@ document.addEventListener('alpine:init', () => {
         margin: 0,
         filename,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 816 },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
       }).from(tpl).save().then(() => {
-        tpl.style.display = 'none';
+        tpl.style.cssText = 'display:none;';
         tpl.innerHTML = '';
       });
     }
