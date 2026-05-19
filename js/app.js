@@ -38,27 +38,36 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
-    // --- Sortable ---
-    initSortable(el) {
-      if (!window.Sortable) return;
-      Sortable.create(el, {
-        animation: 150,
-        handle: '.drag-handle',
-        ghostClass: 'sortable-ghost',
-        chosenClass: 'sortable-chosen',
-        onEnd: () => {
-          // Read DOM order after SortableJS has moved the element, then set
-          // the array to match. Alpine re-renders with stable _id keys and
-          // finds nodes already in the right place — no conflicting moves.
-          const rows = Array.from(el.children)
-            .filter(c => c.hasAttribute('data-sort-id'));
-          const lookup = {};
-          this.estimate.scopeOfWork.forEach(item => { lookup[item._id] = item; });
-          this.estimate.scopeOfWork = rows
-            .map(r => lookup[r.getAttribute('data-sort-id')])
-            .filter(Boolean);
-        }
-      });
+    // --- Scope drag-and-drop (native HTML5) ---
+    dragIndex: null,
+    dropIndex: null,
+
+    scopeDragStart(evt, i) {
+      this.dragIndex = i;
+      evt.dataTransfer.effectAllowed = 'move';
+      evt.dataTransfer.setData('text/plain', i); // required for Firefox
+    },
+    scopeDragOver(evt, i) {
+      if (this.dragIndex === null || this.dragIndex === i) return;
+      this.dropIndex = i;
+    },
+    scopeDragLeave(evt) {
+      // Only clear if leaving the row entirely (not entering a child element)
+      if (!evt.currentTarget.contains(evt.relatedTarget)) {
+        this.dropIndex = null;
+      }
+    },
+    scopeDrop(evt, i) {
+      if (this.dragIndex === null || this.dragIndex === i) return;
+      const arr = this.estimate.scopeOfWork;
+      const moved = arr.splice(this.dragIndex, 1)[0];
+      arr.splice(i, 0, moved);
+      this.dragIndex = null;
+      this.dropIndex = null;
+    },
+    scopeDragEnd() {
+      this.dragIndex = null;
+      this.dropIndex = null;
     },
 
     // --- Array helpers ---
