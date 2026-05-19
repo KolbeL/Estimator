@@ -47,10 +47,14 @@ document.addEventListener('alpine:init', () => {
         ghostClass: 'sortable-ghost',
         chosenClass: 'sortable-chosen',
         onEnd: (evt) => {
-          if (evt.oldIndex === evt.newIndex) return;
+          // Alpine's <template> element sits at children[0], so SortableJS
+          // indices are 1-based relative to the array — subtract 1 to correct.
+          const oldIdx = evt.oldIndex - 1;
+          const newIdx = evt.newIndex - 1;
+          if (oldIdx === newIdx) return;
           const arr = this.estimate.scopeOfWork;
-          const moved = arr.splice(evt.oldIndex, 1)[0];
-          arr.splice(evt.newIndex, 0, moved);
+          const moved = arr.splice(oldIdx, 1)[0];
+          arr.splice(newIdx, 0, moved);
         }
       });
     },
