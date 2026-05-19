@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quick Landscaping Estimator</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="js/app.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
+</head>
+<body x-data="estimatorApp()" x-init="init()" x-cloak>
+
+  <!-- Navbar -->
+  <nav class="navbar navbar-dark px-3 py-2 mb-4">
+    <span class="navbar-brand fw-bold fs-5">
+      <i class="bi bi-flower1 me-1"></i> Quick Landscaping Estimator
+    </span>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-light btn-sm nav-btn"
+        :class="currentView === 'estimator' ? 'active' : ''"
+        @click="currentView = 'estimator'">
+        <i class="bi bi-file-earmark-text me-1"></i>New Estimate
+      </button>
+      <button class="btn btn-outline-light btn-sm nav-btn"
+        :class="currentView === 'settings' ? 'active' : ''"
+        @click="currentView = 'settings'">
+        <i class="bi bi-gear me-1"></i>Template Settings
+      </button>
+    </div>
+  </nav>
+
+  <!-- ===================== ESTIMATOR VIEW ===================== -->
+  <div x-show="currentView === 'estimator'" class="container-fluid px-4" style="max-width:1100px;">
+
+    <!-- Client Information -->
+    <div class="card mb-4">
+      <div class="card-header bg-success text-white py-2">
+        <h6 class="mb-0"><i class="bi bi-person-fill me-1"></i>Client Information</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Customer Name <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" x-model="estimate.customerName" placeholder="John Doe" />
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Customer Address</label>
+            <textarea class="form-control" x-model="estimate.customerAddress" rows="2"
+              placeholder="123 Main St&#10;City, ST 12345"></textarea>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold">Estimate Date</label>
+            <input type="date" class="form-control" x-model="estimate.estimateDate" />
+          </div>
+          <div class="col-md-2">
+            <label class="form-label fw-semibold">Project Name</label>
+            <input type="text" class="form-control" x-model="estimate.projectName" placeholder="Main St. Sod Install" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scope of Work -->
+    <div class="card mb-4">
+      <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-list-check me-1"></i>Scope of Work</h6>
+        <button class="btn btn-light btn-sm py-0 px-2" @click="addScopeItem()">
+          <i class="bi bi-plus-circle me-1"></i>Add Item
+        </button>
+      </div>
+      <div class="card-body">
+        <div x-show="estimate.scopeOfWork.length === 0" class="text-muted text-center py-2 small">
+          No scope items yet — click <strong>Add Item</strong> to begin.
+        </div>
+        <template x-for="(item, i) in estimate.scopeOfWork" :key="i">
+          <div class="row g-2 mb-2 align-items-start">
+            <div class="col-md-3">
+              <input type="text" class="form-control form-control-sm" x-model="item.title"
+                placeholder="Phase 1: Grading" />
+            </div>
+            <div class="col">
+              <input type="text" class="form-control form-control-sm" x-model="item.description"
+                placeholder="Technical details of the task…" />
+            </div>
+            <div class="col-auto">
+              <button class="btn btn-outline-danger btn-sm" @click="estimate.scopeOfWork.splice(i, 1)"
+                title="Remove item">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Timing -->
+    <div class="card mb-4">
+      <div class="card-header bg-success text-white py-2">
+        <h6 class="mb-0"><i class="bi bi-calendar-range me-1"></i>Estimated Timing</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Start Date</label>
+            <input type="date" class="form-control" x-model="estimate.startDate" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Completion Date</label>
+            <input type="date" class="form-control" x-model="estimate.completionDate" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Materials -->
+    <div class="card mb-4">
+      <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-boxes me-1"></i>Materials</h6>
+        <button class="btn btn-light btn-sm py-0 px-2" @click="addMaterial()">
+          <i class="bi bi-plus-circle me-1"></i>Add Row
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <div x-show="estimate.costs.materials.length === 0" class="text-muted text-center py-3 small">
+          No materials added — click <strong>Add Row</strong>.
+        </div>
+        <table class="table table-sm table-bordered mb-0"
+          x-show="estimate.costs.materials.length > 0">
+          <thead class="table-light">
+            <tr>
+              <th>Item Name</th>
+              <th style="width:110px">Quantity</th>
+              <th style="width:140px">Unit Price</th>
+              <th style="width:110px">Line Total</th>
+              <th style="width:44px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(m, i) in estimate.costs.materials" :key="i">
+              <tr>
+                <td><input type="text" class="form-control form-control-sm" x-model="m.name" placeholder="Sod" /></td>
+                <td><input type="number" class="form-control form-control-sm" x-model.number="m.qty" min="0" step="1" /></td>
+                <td>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" x-model.number="m.unitPrice" min="0" step="0.01" />
+                  </div>
+                </td>
+                <td class="fw-semibold" x-text="fmt((+m.qty||0)*(+m.unitPrice||0))"></td>
+                <td>
+                  <button class="btn btn-outline-danger btn-sm p-1" @click="estimate.costs.materials.splice(i,1)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <td colspan="3" class="text-end fw-bold pe-3">Materials Subtotal:</td>
+              <td class="fw-bold" x-text="fmt(materialsTotal())"></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Machinery -->
+    <div class="card mb-4">
+      <div class="card-header bg-warning py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">
+          <i class="bi bi-truck me-1"></i>Machinery Rentals
+          <span class="badge bg-secondary ms-1" style="font-size:.65rem">Optional</span>
+        </h6>
+        <button class="btn btn-dark btn-sm py-0 px-2" @click="addMachinery()">
+          <i class="bi bi-plus-circle me-1"></i>Add Row
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <div x-show="estimate.costs.machinery.length === 0" class="text-muted text-center py-3 small">
+          No machinery added. This section will be <strong>hidden in the PDF</strong> if left empty.
+        </div>
+        <table class="table table-sm table-bordered mb-0"
+          x-show="estimate.costs.machinery.length > 0">
+          <thead class="table-light">
+            <tr>
+              <th>Equipment Name</th>
+              <th style="width:130px">Duration (days)</th>
+              <th style="width:140px">Daily Rate</th>
+              <th style="width:110px">Line Total</th>
+              <th style="width:44px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(m, i) in estimate.costs.machinery" :key="i">
+              <tr>
+                <td><input type="text" class="form-control form-control-sm" x-model="m.name" placeholder="Excavator" /></td>
+                <td><input type="number" class="form-control form-control-sm" x-model.number="m.duration" min="0" step="0.5" /></td>
+                <td>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" x-model.number="m.rate" min="0" step="0.01" />
+                  </div>
+                </td>
+                <td class="fw-semibold" x-text="fmt((+m.duration||0)*(+m.rate||0))"></td>
+                <td>
+                  <button class="btn btn-outline-danger btn-sm p-1" @click="estimate.costs.machinery.splice(i,1)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <td colspan="3" class="text-end fw-bold pe-3">Machinery Subtotal:</td>
+              <td class="fw-bold" x-text="fmt(machineryTotal())"></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Labor -->
+    <div class="card mb-4">
+      <div class="card-header bg-success text-white py-2">
+        <h6 class="mb-0"><i class="bi bi-person-workspace me-1"></i>Labor</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-3 align-items-end">
+          <div class="col-auto">
+            <label class="form-label fw-semibold">Estimated Days</label>
+            <div class="input-group">
+              <button class="btn btn-outline-secondary" type="button" @click="decrementLaborDays()">
+                <i class="bi bi-dash"></i>
+              </button>
+              <input type="number" class="form-control stepper-input" x-model.number="estimate.costs.laborDays"
+                min="0.5" step="0.5" @change="validateLaborDays()" />
+              <button class="btn btn-outline-secondary" type="button" @click="incrementLaborDays()">
+                <i class="bi bi-plus"></i>
+              </button>
+            </div>
+            <div class="form-text">0.5-day increments</div>
+          </div>
+          <div class="col-auto">
+            <label class="form-label fw-semibold">Daily Rate</label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" class="form-control" style="max-width:130px"
+                x-model.number="estimate.costs.laborDailyRate" min="0" step="0.01" />
+            </div>
+          </div>
+          <div class="col-auto">
+            <label class="form-label fw-semibold">Labor Subtotal</label>
+            <div class="form-control bg-light fw-bold" style="min-width:110px"
+              x-text="fmt(laborTotal())"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Miscellaneous -->
+    <div class="card mb-4">
+      <div class="card-header bg-success text-white py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">
+          <i class="bi bi-receipt me-1"></i>Miscellaneous
+          <span class="badge bg-light text-dark ms-1" style="font-size:.65rem">Optional</span>
+        </h6>
+        <button class="btn btn-light btn-sm py-0 px-2" @click="addMisc()">
+          <i class="bi bi-plus-circle me-1"></i>Add Row
+        </button>
+      </div>
+      <div class="card-body p-0">
+        <div x-show="estimate.costs.misc.length === 0" class="text-muted text-center py-3 small">
+          No misc costs. This section will be <strong>hidden in the PDF</strong> if left empty.
+        </div>
+        <table class="table table-sm table-bordered mb-0"
+          x-show="estimate.costs.misc.length > 0">
+          <thead class="table-light">
+            <tr>
+              <th>Description</th>
+              <th style="width:140px">Amount</th>
+              <th style="width:44px"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(m, i) in estimate.costs.misc" :key="i">
+              <tr>
+                <td><input type="text" class="form-control form-control-sm" x-model="m.description"
+                  placeholder="Permit fees, dump charges…" /></td>
+                <td>
+                  <div class="input-group input-group-sm">
+                    <span class="input-group-text">$</span>
+                    <input type="number" class="form-control" x-model.number="m.amount" min="0" step="0.01" />
+                  </div>
+                </td>
+                <td>
+                  <button class="btn btn-outline-danger btn-sm p-1" @click="estimate.costs.misc.splice(i,1)">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+          <tfoot class="table-light">
+            <tr>
+              <td class="text-end fw-bold pe-3">Misc Subtotal:</td>
+              <td class="fw-bold" x-text="fmt(miscTotal())"></td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- Grand Total + Actions -->
+    <div class="card mb-5 total-bar">
+      <div class="card-body py-3 px-4">
+        <div class="row align-items-center">
+          <div class="col">
+            <div class="small opacity-75 mb-1">GRAND TOTAL</div>
+            <div class="fw-bold fs-3" x-text="fmt(grandTotal())"></div>
+          </div>
+          <div class="col-auto d-flex gap-2">
+            <button class="btn btn-light btn-sm" @click="clearEstimate()">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>Clear
+            </button>
+            <button class="btn btn-warning fw-bold" @click="generatePDF()">
+              <i class="bi bi-file-earmark-pdf me-1"></i>Generate PDF
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- end estimator view -->
+
+  <!-- ===================== SETTINGS VIEW ===================== -->
+  <div x-show="currentView === 'settings'" class="container py-2" style="max-width:860px;">
+    <div class="card">
+      <div class="card-header bg-success text-white py-2">
+        <h6 class="mb-0"><i class="bi bi-gear me-1"></i>Template Settings</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-4">
+
+          <!-- Company Info -->
+          <div class="col-md-6">
+            <h6 class="text-muted text-uppercase small fw-bold mb-3">Company Information</h6>
+            <div class="mb-3">
+              <label class="form-label">Company Name</label>
+              <input type="text" class="form-control" x-model="settings.companyName"
+                placeholder="Green Thumb Landscaping" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Phone</label>
+              <input type="tel" class="form-control" x-model="settings.phone"
+                placeholder="(555) 123-4567" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" x-model="settings.email"
+                placeholder="info@greenthumb.com" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Website</label>
+              <input type="text" class="form-control" x-model="settings.website"
+                placeholder="www.greenthumb.com" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">License Number(s)</label>
+              <input type="text" class="form-control" x-model="settings.licenseNumbers"
+                placeholder="CA-12345, Bonded" />
+            </div>
+          </div>
+
+          <!-- Logo + T&C -->
+          <div class="col-md-6">
+            <h6 class="text-muted text-uppercase small fw-bold mb-3">Branding</h6>
+            <div class="mb-3">
+              <label class="form-label">Company Logo</label>
+              <input type="file" class="form-control" accept="image/*"
+                id="logo-input" @change="loadLogo($event)" />
+              <div class="form-text">Appears top-right on the PDF.</div>
+              <div x-show="settings.logo" class="mt-2 d-flex align-items-center gap-2">
+                <img :src="settings.logo" alt="Logo preview"
+                  style="max-height:60px; max-width:160px; border:1px solid #ddd; border-radius:4px;" />
+                <button class="btn btn-outline-danger btn-sm" @click="removeLogo()">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </div>
+            </div>
+
+            <h6 class="text-muted text-uppercase small fw-bold mb-3 mt-4">Terms &amp; Conditions</h6>
+            <div class="mb-3">
+              <textarea class="form-control" x-model="settings.termsAndConditions" rows="9"
+                placeholder="Payment is due within 30 days of project completion.&#10;&#10;All work is warranted for 1 year against defects in workmanship…"></textarea>
+              <div class="form-text">Appears at the bottom of every PDF.</div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="d-flex align-items-center justify-content-end gap-3 mt-3 pt-3 border-top">
+          <span x-show="settingsSaved" class="text-success small fw-semibold">
+            <i class="bi bi-check-circle me-1"></i>Settings saved!
+          </span>
+          <button class="btn btn-success" @click="saveSettings()">
+            <i class="bi bi-floppy me-1"></i>Save Default Settings
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- end settings view -->
+
+  <!-- Hidden PDF render target -->
+  <div id="pdf-template" style="display:none; position:absolute; left:-9999px; top:0;"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</body>
+</html>
