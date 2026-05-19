@@ -36,3 +36,8 @@ body {
 .nav-btn.active { background-color: white !important; color: #2e7d32 !important; font-weight: 600; }
 
 [x-cloak] { display: none !important; }
+
+.drag-handle { cursor: grab; }
+.drag-handle:active { cursor: grabbing; }
+.sortable-ghost { opacity: 0.35; background: #e8f5e9; border-radius: 6px; }
+.sortable-chosen { background: #f9fbe7; }

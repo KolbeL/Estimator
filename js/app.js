@@ -38,6 +38,23 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
+    // --- Sortable ---
+    initSortable(el) {
+      if (!window.Sortable) return;
+      Sortable.create(el, {
+        animation: 150,
+        handle: '.drag-handle',
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        onEnd: (evt) => {
+          if (evt.oldIndex === evt.newIndex) return;
+          const arr = this.estimate.scopeOfWork;
+          const moved = arr.splice(evt.oldIndex, 1)[0];
+          arr.splice(evt.newIndex, 0, moved);
+        }
+      });
+    },
+
     // --- Array helpers ---
     addScopeItem()  { this.estimate.scopeOfWork.push({ title: '', description: '' }); },
     addMaterial()   { this.estimate.costs.materials.push({ name: '', qty: 0, unitPrice: 0 }); },
