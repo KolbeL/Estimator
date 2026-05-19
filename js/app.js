@@ -198,7 +198,7 @@ document.addEventListener('alpine:init', () => {
           }));
         }
         if (!confirm('Load this estimate? Your current data will be replaced.')) return;
-        this.estimate = Object.assign({
+        Object.assign(this.estimate, {
           customerName: '', customerAddress: '',
           estimateDate: new Date().toISOString().split('T')[0],
           projectName: '', scopeOfWork: [],
@@ -216,13 +216,13 @@ document.addEventListener('alpine:init', () => {
     // --- Clear estimate ---
     clearEstimate() {
       if (!confirm('Clear all estimate data? This cannot be undone.')) return;
-      this.estimate = {
+      Object.assign(this.estimate, {
         customerName: '', customerAddress: '',
         estimateDate: new Date().toISOString().split('T')[0],
         projectName: '', scopeOfWork: [],
         startDate: '', completionDate: '',
         costs: { materials: [], machinery: [], laborDays: 1.0, laborDailyRate: 400.00, misc: [] }
-      };
+      });
     },
 
     // --- PDF Generation ---
