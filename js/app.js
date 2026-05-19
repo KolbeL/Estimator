@@ -46,15 +46,17 @@ document.addEventListener('alpine:init', () => {
         handle: '.drag-handle',
         ghostClass: 'sortable-ghost',
         chosenClass: 'sortable-chosen',
-        onEnd: (evt) => {
-          // Alpine's <template> element sits at children[0], so SortableJS
-          // indices are 1-based relative to the array — subtract 1 to correct.
-          const oldIdx = evt.oldIndex - 1;
-          const newIdx = evt.newIndex - 1;
-          if (oldIdx === newIdx) return;
-          const arr = this.estimate.scopeOfWork;
-          const moved = arr.splice(oldIdx, 1)[0];
-          arr.splice(newIdx, 0, moved);
+        onEnd: () => {
+          // Read DOM order after SortableJS has moved the element, then set
+          // the array to match. Alpine re-renders with stable _id keys and
+          // finds nodes already in the right place — no conflicting moves.
+          const rows = Array.from(el.children)
+            .filter(c => c.hasAttribute('data-sort-id'));
+          const lookup = {};
+          this.estimate.scopeOfWork.forEach(item => { lookup[item._id] = item; });
+          this.estimate.scopeOfWork = rows
+            .map(r => lookup[r.getAttribute('data-sort-id')])
+            .filter(Boolean);
         }
       });
     },

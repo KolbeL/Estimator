@@ -76,7 +76,7 @@
         </div>
         <div id="scope-list" x-init="$nextTick(() => initSortable($el))">
           <template x-for="(item, i) in estimate.scopeOfWork" :key="item._id">
-            <div class="row g-2 mb-2 align-items-center scope-row">
+            <div class="row g-2 mb-2 align-items-center scope-row" :data-sort-id="item._id">
               <div class="col-auto px-1">
                 <i class="bi bi-grip-vertical drag-handle text-muted fs-5"></i>
               </div>
