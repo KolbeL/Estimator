@@ -34,7 +34,7 @@ document.addEventListener('alpine:init', () => {
     init() {
       const saved = localStorage.getItem('estimator-settings');
       if (saved) {
-        try { this.settings = JSON.parse(saved); } catch (_) {}
+        try { Object.assign(this.settings, JSON.parse(saved)); } catch (_) {}
       }
     },
 
