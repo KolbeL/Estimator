@@ -56,7 +56,7 @@ document.addEventListener('alpine:init', () => {
     },
 
     // --- Array helpers ---
-    addScopeItem()  { this.estimate.scopeOfWork.push({ title: '', description: '' }); },
+    addScopeItem()  { this.estimate.scopeOfWork.push({ _id: Date.now() + Math.random(), title: '', description: '' }); },
     addMaterial()   { this.estimate.costs.materials.push({ name: '', qty: 0, unitPrice: 0 }); },
     addMachinery()  { this.estimate.costs.machinery.push({ name: '', duration: 1, rate: 0 }); },
     addMisc()       { this.estimate.costs.misc.push({ description: '', amount: 0 }); },
