@@ -26,6 +26,7 @@ document.addEventListener('alpine:init', () => {
       email: '',
       website: '',
       licenseNumbers: '',
+      taxRate: 0,
       logo: null,
       termsAndConditions: ''
     },
@@ -69,8 +70,12 @@ document.addEventListener('alpine:init', () => {
     miscTotal() {
       return this.estimate.costs.misc.reduce((s, m) => s + (+(m.amount) || 0), 0);
     },
+    taxAmount() {
+      const rate = +(this.settings.taxRate) || 0;
+      return (this.materialsTotal() + this.machineryTotal()) * (rate / 100);
+    },
     grandTotal() {
-      return this.materialsTotal() + this.machineryTotal() + this.laborTotal() + this.miscTotal();
+      return this.materialsTotal() + this.machineryTotal() + this.taxAmount() + this.laborTotal() + this.miscTotal();
     },
 
     fmt(n) { return '$' + (+(n) || 0).toFixed(2); },
@@ -264,7 +269,12 @@ document.addEventListener('alpine:init', () => {
 
           <!-- Grand Total -->
           <div style="page-break-inside:avoid; margin:28px 0;">
-            <table style="width:100%; border-collapse:collapse;">
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+              ${this.taxAmount() > 0 ? `
+              <tr style="background:#f9fbe7;">
+                <td style="padding:8px 16px; border:1px solid #c8e6c9;">Tax (${s.taxRate}%) — applied to Materials &amp; Machinery</td>
+                <td style="padding:8px 16px; border:1px solid #c8e6c9; text-align:right;">${this.fmt(this.taxAmount())}</td>
+              </tr>` : ''}
               <tr style="background:#2e7d32; color:white;">
                 <td style="padding:14px 16px; font-weight:bold; font-size:16px; letter-spacing:0.05em;">TOTAL ESTIMATE</td>
                 <td style="padding:14px 16px; font-weight:bold; font-size:20px; text-align:right;">${this.fmt(this.grandTotal())}</td>
@@ -288,7 +298,7 @@ document.addEventListener('alpine:init', () => {
         </div>`;
 
       const safeName = e.customerName.replace(/[^a-z0-9]/gi, '_');
-      const title = `Estimate_${safeName}_${e.estimateDate || 'draft'}`;
+      const title = `${safeName}_${e.estimateDate || 'draft'}`;
 
       const printWindow = window.open('', '_blank', 'width=900,height=700');
       printWindow.document.write(`<!DOCTYPE html>
