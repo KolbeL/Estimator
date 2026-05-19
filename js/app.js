@@ -120,208 +120,260 @@ document.addEventListener('alpine:init', () => {
         return;
       }
 
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+
+      const PW  = doc.internal.pageSize.getWidth();
+      const PH  = doc.internal.pageSize.getHeight();
+      const M   = 40;
+      const CW  = PW - M * 2;
+
+      const GREEN    = [46, 125, 50];
+      const LT_GREEN = [232, 245, 233];
+      const VLT      = [241, 248, 233];
+      const AMBER    = [249, 168, 37];
+      const GRAY     = [110, 110, 110];
+
+      const money = (n) => '$' + (+(n) || 0).toFixed(2);
       const fmtDate = (d) => d
         ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
         : '';
 
-      const cell = (content, opts = '') =>
-        `<td style="padding:8px 10px; border:1px solid #c8e6c9; ${opts}">${content}</td>`;
-      const th = (content, opts = '') =>
-        `<th style="padding:8px 10px; border:1px solid #a5d6a7; background:#e8f5e9; ${opts}">${content}</th>`;
+      const taxRate = +(s.taxRate) || 0;
+      const matSub  = this.materialsTotal();
+      const matTax  = matSub  * taxRate / 100;
+      const machSub = this.machineryTotal();
+      const machTax = machSub * taxRate / 100;
 
-      const sectionHeader = (title) =>
-        `<h3 style="color:#2e7d32; border-bottom:2px solid #2e7d32; padding-bottom:5px; margin:24px 0 12px; font-size:15px; text-transform:uppercase; letter-spacing:0.05em;">${title}</h3>`;
+      let y = M;
 
-      // Scope rows
-      const scopeRows = e.scopeOfWork.filter(i => i.title || i.description).map(item => `
-        <tr>
-          ${cell(`<strong>${item.title}</strong>`, 'width:200px; vertical-align:top;')}
-          ${cell(item.description)}
-        </tr>`).join('');
+      // ---- Logo ----
+      if (s.logo) {
+        try {
+          const fmt = s.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+          doc.addImage(s.logo, fmt, PW - M - 130, y, 130, 52);
+        } catch (_) {}
+      }
 
-      // Materials rows
-      const matRows = e.costs.materials.map(m => `
-        <tr>
-          ${cell(m.name)}
-          ${cell(m.qty, 'text-align:center;')}
-          ${cell(this.fmt(m.unitPrice), 'text-align:right;')}
-          ${cell(`<strong>${this.fmt((+m.qty || 0) * (+m.unitPrice || 0))}</strong>`, 'text-align:right;')}
-        </tr>`).join('');
+      // ---- Title ----
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...GREEN);
+      doc.text('Project Estimate', M, y + 20);
+      if (e.projectName) {
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(...GRAY);
+        doc.text(e.projectName, M, y + 34);
+      }
+      y += 62;
 
-      // Machinery rows
-      const machRows = e.costs.machinery.map(m => `
-        <tr>
-          ${cell(m.name)}
-          ${cell(m.duration + ' day(s)', 'text-align:center;')}
-          ${cell(this.fmt(m.rate) + '/day', 'text-align:right;')}
-          ${cell(`<strong>${this.fmt((+m.duration || 0) * (+m.rate || 0))}</strong>`, 'text-align:right;')}
-        </tr>`).join('');
+      // ---- Client / date block ----
+      const clientBody = [
+        [
+          { content: 'Prepared For', styles: { fontStyle: 'bold', fontSize: 8, textColor: GRAY } },
+          { content: 'Date', styles: { fontStyle: 'bold', fontSize: 8, textColor: GRAY, halign: 'right' } }
+        ],
+        [
+          { content: e.customerName, styles: { fontStyle: 'bold', fontSize: 12 } },
+          { content: fmtDate(e.estimateDate), styles: { halign: 'right', fontSize: 10 } }
+        ]
+      ];
+      if (e.customerAddress) {
+        clientBody.push([
+          { content: e.customerAddress, styles: { textColor: GRAY, fontSize: 9 } },
+          { content: e.startDate ? 'Start: ' + fmtDate(e.startDate) : '', styles: { halign: 'right', textColor: GRAY, fontSize: 9 } }
+        ]);
+      }
+      if (e.completionDate) {
+        clientBody.push([
+          '',
+          { content: 'Est. Completion: ' + fmtDate(e.completionDate), styles: { halign: 'right', textColor: GRAY, fontSize: 9 } }
+        ]);
+      }
 
-      // Misc rows
-      const miscRows = e.costs.misc.map(m => `
-        <tr>
-          ${cell(m.description)}
-          ${cell(`<strong>${this.fmt(m.amount)}</strong>`, 'text-align:right;')}
-        </tr>`).join('');
+      doc.autoTable({
+        startY: y, margin: { left: M, right: M }, tableWidth: CW,
+        theme: 'plain',
+        styles: { cellPadding: { top: 4, bottom: 4, left: 10, right: 10 }, fillColor: VLT },
+        body: clientBody,
+        columnStyles: { 0: { cellWidth: CW * 0.6 }, 1: { cellWidth: CW * 0.4 } }
+      });
+      y = doc.lastAutoTable.finalY + 18;
 
-      const tableStyle = 'width:100%; border-collapse:collapse; font-size:13px;';
-      const subtotalRow = (colspan, amount) => `
-        <tr style="background:#f1f8e9;">
-          <td colspan="${colspan}" style="padding:8px 10px; border:1px solid #c8e6c9; text-align:right; font-weight:bold;">Subtotal:</td>
-          <td style="padding:8px 10px; border:1px solid #c8e6c9; text-align:right; font-weight:bold;">${this.fmt(amount)}</td>
-        </tr>`;
+      // ---- Scope of Work ----
+      const scopeItems = e.scopeOfWork.filter(i => i.title || i.description);
+      if (scopeItems.length > 0) {
+        doc.autoTable({
+          startY: y, margin: { left: M, right: M }, tableWidth: CW,
+          head: [['Scope of Work', 'Description']],
+          body: scopeItems.map(i => [
+            { content: i.title || '', styles: { fontStyle: 'bold' } },
+            i.description || ''
+          ]),
+          headStyles: { fillColor: GREEN, textColor: 255, fontSize: 10, fontStyle: 'bold' },
+          bodyStyles: { fontSize: 10 },
+          columnStyles: { 0: { cellWidth: CW * 0.3 }, 1: { cellWidth: CW * 0.7 } }
+        });
+        y = doc.lastAutoTable.finalY + 14;
+      }
 
-      const machinerySection = e.costs.machinery.length > 0 ? `
-        <div style="page-break-inside:avoid; margin-bottom:20px;">
-          ${sectionHeader('Machinery Rentals')}
-          <table style="${tableStyle}">
-            <thead><tr>${th('Equipment')}${th('Duration','text-align:center;')}${th('Rate','text-align:right;')}${th('Total','text-align:right;')}</tr></thead>
-            <tbody>${machRows}</tbody>
-            <tfoot>${subtotalRow(3, this.machineryTotal())}</tfoot>
-          </table>
-        </div>` : '';
+      // ---- Materials ----
+      if (e.costs.materials.length > 0) {
+        const foot = [[
+          { content: 'Subtotal', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+          { content: money(matSub), styles: { halign: 'right', fontStyle: 'bold' } }
+        ]];
+        if (taxRate > 0) {
+          foot.push([
+            { content: `Tax (${taxRate}%)`, colSpan: 3, styles: { halign: 'right', textColor: GRAY } },
+            { content: money(matTax), styles: { halign: 'right', textColor: GRAY } }
+          ]);
+          foot.push([
+            { content: 'Total with Tax', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: money(matSub + matTax), styles: { halign: 'right', fontStyle: 'bold' } }
+          ]);
+        }
+        doc.autoTable({
+          startY: y, margin: { left: M, right: M }, tableWidth: CW, showFoot: 'lastPage',
+          head: [['Materials', 'Qty', 'Unit Price', 'Line Total']],
+          body: e.costs.materials.map(m => [
+            m.name || '',
+            { content: m.qty,                                        styles: { halign: 'center' } },
+            { content: money(m.unitPrice),                           styles: { halign: 'right' } },
+            { content: money((+m.qty||0)*(+m.unitPrice||0)),         styles: { halign: 'right', fontStyle: 'bold' } }
+          ]),
+          foot,
+          headStyles: { fillColor: GREEN, textColor: 255, fontSize: 10, fontStyle: 'bold' },
+          footStyles: { fillColor: LT_GREEN, fontSize: 10 },
+          bodyStyles: { fontSize: 10 },
+          columnStyles: { 0: { cellWidth: CW*0.46 }, 1: { cellWidth: CW*0.14 }, 2: { cellWidth: CW*0.2 }, 3: { cellWidth: CW*0.2 } }
+        });
+        y = doc.lastAutoTable.finalY + 14;
+      }
 
-      const miscSection = e.costs.misc.length > 0 ? `
-        <div style="page-break-inside:avoid; margin-bottom:20px;">
-          ${sectionHeader('Miscellaneous')}
-          <table style="${tableStyle}">
-            <thead><tr>${th('Description')}${th('Amount','text-align:right;')}</tr></thead>
-            <tbody>${miscRows}</tbody>
-            <tfoot>${subtotalRow(1, this.miscTotal())}</tfoot>
-          </table>
-        </div>` : '';
+      // ---- Machinery ----
+      if (e.costs.machinery.length > 0) {
+        const foot = [[
+          { content: 'Subtotal', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+          { content: money(machSub), styles: { halign: 'right', fontStyle: 'bold' } }
+        ]];
+        if (taxRate > 0) {
+          foot.push([
+            { content: `Tax (${taxRate}%)`, colSpan: 3, styles: { halign: 'right', textColor: GRAY } },
+            { content: money(machTax), styles: { halign: 'right', textColor: GRAY } }
+          ]);
+          foot.push([
+            { content: 'Total with Tax', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: money(machSub + machTax), styles: { halign: 'right', fontStyle: 'bold' } }
+          ]);
+        }
+        doc.autoTable({
+          startY: y, margin: { left: M, right: M }, tableWidth: CW, showFoot: 'lastPage',
+          head: [['Machinery', 'Duration', 'Daily Rate', 'Line Total']],
+          body: e.costs.machinery.map(m => [
+            m.name || '',
+            { content: m.duration + ' day(s)',                       styles: { halign: 'center' } },
+            { content: money(m.rate) + '/day',                       styles: { halign: 'right' } },
+            { content: money((+m.duration||0)*(+m.rate||0)),         styles: { halign: 'right', fontStyle: 'bold' } }
+          ]),
+          foot,
+          headStyles: { fillColor: AMBER, textColor: 255, fontSize: 10, fontStyle: 'bold' },
+          footStyles: { fillColor: LT_GREEN, fontSize: 10 },
+          bodyStyles: { fontSize: 10 },
+          columnStyles: { 0: { cellWidth: CW*0.46 }, 1: { cellWidth: CW*0.14 }, 2: { cellWidth: CW*0.2 }, 3: { cellWidth: CW*0.2 } }
+        });
+        y = doc.lastAutoTable.finalY + 14;
+      }
 
+      // ---- Labor ----
+      doc.autoTable({
+        startY: y, margin: { left: M, right: M }, tableWidth: CW,
+        head: [['Labor', 'Days', 'Daily Rate', 'Total']],
+        body: [[
+          'Labor',
+          { content: e.costs.laborDays,                              styles: { halign: 'center' } },
+          { content: money(e.costs.laborDailyRate) + '/day',         styles: { halign: 'right' } },
+          { content: money(this.laborTotal()),                        styles: { halign: 'right', fontStyle: 'bold' } }
+        ]],
+        headStyles: { fillColor: GREEN, textColor: 255, fontSize: 10, fontStyle: 'bold' },
+        bodyStyles: { fontSize: 10 },
+        columnStyles: { 0: { cellWidth: CW*0.46 }, 1: { cellWidth: CW*0.14 }, 2: { cellWidth: CW*0.2 }, 3: { cellWidth: CW*0.2 } }
+      });
+      y = doc.lastAutoTable.finalY + 14;
+
+      // ---- Misc ----
+      if (e.costs.misc.length > 0) {
+        doc.autoTable({
+          startY: y, margin: { left: M, right: M }, tableWidth: CW, showFoot: 'lastPage',
+          head: [['Miscellaneous', 'Amount']],
+          body: e.costs.misc.map(m => [
+            m.description || '',
+            { content: money(m.amount), styles: { halign: 'right', fontStyle: 'bold' } }
+          ]),
+          foot: [[
+            { content: 'Subtotal', styles: { halign: 'right', fontStyle: 'bold' } },
+            { content: money(this.miscTotal()), styles: { halign: 'right', fontStyle: 'bold' } }
+          ]],
+          headStyles: { fillColor: GREEN, textColor: 255, fontSize: 10, fontStyle: 'bold' },
+          footStyles: { fillColor: LT_GREEN, fontSize: 10 },
+          bodyStyles: { fontSize: 10 },
+          columnStyles: { 0: { cellWidth: CW*0.8 }, 1: { cellWidth: CW*0.2 } }
+        });
+        y = doc.lastAutoTable.finalY + 14;
+      }
+
+      // ---- Grand Total ----
+      doc.autoTable({
+        startY: y, margin: { left: M, right: M }, tableWidth: CW,
+        body: [[
+          { content: 'TOTAL ESTIMATE', styles: { fontStyle: 'bold', fontSize: 13 } },
+          { content: money(this.grandTotal()), styles: { fontStyle: 'bold', fontSize: 13, halign: 'right' } }
+        ]],
+        bodyStyles: { fillColor: GREEN, textColor: 255, cellPadding: { top: 10, bottom: 10, left: 12, right: 12 } },
+        columnStyles: { 0: { cellWidth: CW*0.7 }, 1: { cellWidth: CW*0.3 } }
+      });
+      y = doc.lastAutoTable.finalY + 14;
+
+      // ---- Company contact footer ----
       const contactParts = [
-        s.companyName ? `<strong>${s.companyName}</strong>` : '',
-        s.phone       ? `&#128222; ${s.phone}` : '',
-        s.email       ? `&#9993; ${s.email}` : '',
-        s.website     ? `&#127760; ${s.website}` : '',
-        s.licenseNumbers ? `Lic# ${s.licenseNumbers}` : '',
-      ].filter(Boolean).join(' &nbsp;|&nbsp; ');
+        s.companyName, s.phone, s.email, s.website,
+        s.licenseNumbers ? 'Lic# ' + s.licenseNumbers : ''
+      ].filter(Boolean);
+      if (contactParts.length > 0) {
+        doc.setFillColor(...LT_GREEN);
+        const contactText = contactParts.join('  |  ');
+        const lines = doc.splitTextToSize(contactText, CW - 20);
+        const boxH = lines.length * 13 + 12;
+        doc.roundedRect(M, y, CW, boxH, 3, 3, 'F');
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60, 60, 60);
+        doc.text(lines, M + 10, y + 10, { baseline: 'top' });
+        y += boxH + 14;
+      }
 
-      const html = `
-        <div style="font-family:Arial,sans-serif; color:#222; padding:40px; max-width:780px; margin:0 auto;">
+      // ---- Terms & Conditions ----
+      if (s.termsAndConditions) {
+        if (y > PH - 120) { doc.addPage(); y = M; }
+        doc.setDrawColor(...GREEN);
+        doc.setLineWidth(1.5);
+        doc.line(M, y, M + CW, y);
+        y += 12;
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...GREEN);
+        doc.text('TERMS & CONDITIONS', M, y);
+        y += 13;
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(80, 80, 80);
+        doc.text(doc.splitTextToSize(s.termsAndConditions, CW), M, y);
+      }
 
-          <!-- Page Header -->
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:28px; page-break-inside:avoid;">
-            <div>
-              <h1 style="color:#2e7d32; margin:0 0 4px; font-size:28px;">Project Estimate</h1>
-              ${e.projectName ? `<p style="margin:0; color:#555; font-size:14px;">${e.projectName}</p>` : ''}
-            </div>
-            <div style="text-align:right;">
-              ${s.logo ? `<img src="${s.logo}" style="max-height:80px; max-width:200px;" />` : ''}
-            </div>
-          </div>
-
-          <!-- Client / Date info -->
-          <div style="display:flex; justify-content:space-between; margin-bottom:24px; padding:16px; background:#f9fbe7; border-radius:6px; page-break-inside:avoid;">
-            <div>
-              <div style="font-size:11px; text-transform:uppercase; color:#888; margin-bottom:4px;">Prepared For</div>
-              <div style="font-weight:bold; font-size:15px;">${e.customerName}</div>
-              ${e.customerAddress ? `<div style="white-space:pre-line; color:#555; font-size:13px;">${e.customerAddress}</div>` : ''}
-            </div>
-            <div style="text-align:right; font-size:13px;">
-              <div><strong>Date:</strong> ${fmtDate(e.estimateDate)}</div>
-              ${e.startDate ? `<div><strong>Start:</strong> ${fmtDate(e.startDate)}</div>` : ''}
-              ${e.completionDate ? `<div><strong>Est. Completion:</strong> ${fmtDate(e.completionDate)}</div>` : ''}
-            </div>
-          </div>
-
-          <!-- Scope of Work -->
-          ${scopeRows ? `
-          <div style="page-break-inside:avoid; margin-bottom:20px;">
-            ${sectionHeader('Scope of Work')}
-            <table style="${tableStyle}">
-              <tbody>${scopeRows}</tbody>
-            </table>
-          </div>` : ''}
-
-          <!-- Materials -->
-          ${matRows ? `
-          <div style="page-break-inside:avoid; margin-bottom:20px;">
-            ${sectionHeader('Materials')}
-            <table style="${tableStyle}">
-              <thead><tr>${th('Item')}${th('Qty','text-align:center;')}${th('Unit Price','text-align:right;')}${th('Line Total','text-align:right;')}</tr></thead>
-              <tbody>${matRows}</tbody>
-              <tfoot>${subtotalRow(3, this.materialsTotal())}</tfoot>
-            </table>
-          </div>` : ''}
-
-          ${machinerySection}
-
-          <!-- Labor -->
-          <div style="page-break-inside:avoid; margin-bottom:20px;">
-            ${sectionHeader('Labor')}
-            <table style="${tableStyle}">
-              <thead><tr>${th('Description')}${th('Days','text-align:center;')}${th('Daily Rate','text-align:right;')}${th('Total','text-align:right;')}</tr></thead>
-              <tbody>
-                <tr>
-                  ${cell('Labor')}
-                  ${cell(e.costs.laborDays, 'text-align:center;')}
-                  ${cell(this.fmt(e.costs.laborDailyRate) + '/day', 'text-align:right;')}
-                  ${cell(`<strong>${this.fmt(this.laborTotal())}</strong>`, 'text-align:right;')}
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          ${miscSection}
-
-          <!-- Grand Total -->
-          <div style="page-break-inside:avoid; margin:28px 0;">
-            <table style="width:100%; border-collapse:collapse; font-size:13px;">
-              ${this.taxAmount() > 0 ? `
-              <tr style="background:#f9fbe7;">
-                <td style="padding:8px 16px; border:1px solid #c8e6c9;">Tax (${s.taxRate}%) — applied to Materials &amp; Machinery</td>
-                <td style="padding:8px 16px; border:1px solid #c8e6c9; text-align:right;">${this.fmt(this.taxAmount())}</td>
-              </tr>` : ''}
-              <tr style="background:#2e7d32; color:white;">
-                <td style="padding:14px 16px; font-weight:bold; font-size:16px; letter-spacing:0.05em;">TOTAL ESTIMATE</td>
-                <td style="padding:14px 16px; font-weight:bold; font-size:20px; text-align:right;">${this.fmt(this.grandTotal())}</td>
-              </tr>
-            </table>
-          </div>
-
-          <!-- Company footer -->
-          ${contactParts ? `
-          <div style="margin-top:20px; padding:12px 16px; background:#e8f5e9; border-radius:6px; font-size:12px; color:#444;">
-            ${contactParts}
-          </div>` : ''}
-
-          <!-- Terms & Conditions -->
-          ${s.termsAndConditions ? `
-          <div style="page-break-inside:avoid; margin-top:24px; padding-top:16px; border-top:2px solid #c8e6c9;">
-            <h3 style="color:#2e7d32; font-size:13px; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;">Terms &amp; Conditions</h3>
-            <p style="font-size:11px; color:#555; white-space:pre-wrap; line-height:1.6;">${s.termsAndConditions}</p>
-          </div>` : ''}
-
-        </div>`;
-
+      // ---- Save ----
       const safeName = e.customerName.replace(/[^a-z0-9]/gi, '_');
-      const title = `${safeName}_${e.estimateDate || 'draft'}`;
-
-      const printWindow = window.open('', '_blank', 'width=900,height=700');
-      printWindow.document.write(`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>${title}</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; padding: 0; font-family: Arial, sans-serif; color: #222; background: white; }
-    table { border-collapse: collapse; }
-    @media print {
-      @page { size: letter; margin: 0.5in; }
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    }
-  </style>
-</head>
-<body>${html}</body>
-</html>`);
-      printWindow.document.close();
-      printWindow.focus();
-      // Brief delay lets the browser finish layout before the print dialog opens
-      setTimeout(() => { printWindow.print(); }, 400);
+      doc.save(`${safeName}_${e.estimateDate || 'draft'}.pdf`);
     }
   }));
 });

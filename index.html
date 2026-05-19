@@ -159,9 +159,19 @@
           </tbody>
           <tfoot class="table-light">
             <tr>
-              <td colspan="3" class="text-end fw-bold pe-3">Materials Subtotal:</td>
-              <td class="fw-bold" x-text="fmt(materialsTotal())"></td>
+              <td colspan="3" class="text-end fw-semibold pe-3">Subtotal:</td>
+              <td class="fw-semibold" x-text="fmt(materialsTotal())"></td>
               <td></td>
+            </tr>
+            <tr x-show="settings.taxRate > 0" class="text-muted small">
+              <td colspan="3" class="text-end pe-3">Tax (<span x-text="settings.taxRate"></span>%):</td>
+              <td x-text="fmt(materialsTotal() * settings.taxRate / 100)"></td>
+              <td></td>
+            </tr>
+            <tr x-show="settings.taxRate > 0">
+              <td colspan="3" class="text-end fw-bold pe-3 border-top">Total with Tax:</td>
+              <td class="fw-bold border-top" x-text="fmt(materialsTotal() * (1 + settings.taxRate / 100))"></td>
+              <td class="border-top"></td>
             </tr>
           </tfoot>
         </table>
@@ -216,9 +226,19 @@
           </tbody>
           <tfoot class="table-light">
             <tr>
-              <td colspan="3" class="text-end fw-bold pe-3">Machinery Subtotal:</td>
-              <td class="fw-bold" x-text="fmt(machineryTotal())"></td>
+              <td colspan="3" class="text-end fw-semibold pe-3">Subtotal:</td>
+              <td class="fw-semibold" x-text="fmt(machineryTotal())"></td>
               <td></td>
+            </tr>
+            <tr x-show="settings.taxRate > 0" class="text-muted small">
+              <td colspan="3" class="text-end pe-3">Tax (<span x-text="settings.taxRate"></span>%):</td>
+              <td x-text="fmt(machineryTotal() * settings.taxRate / 100)"></td>
+              <td></td>
+            </tr>
+            <tr x-show="settings.taxRate > 0">
+              <td colspan="3" class="text-end fw-bold pe-3 border-top">Total with Tax:</td>
+              <td class="fw-bold border-top" x-text="fmt(machineryTotal() * (1 + settings.taxRate / 100))"></td>
+              <td class="border-top"></td>
             </tr>
           </tfoot>
         </table>
@@ -322,10 +342,6 @@
       <div class="card-body py-3 px-4">
         <div class="row align-items-center">
           <div class="col">
-            <div x-show="settings.taxRate > 0" class="small opacity-75 mb-1">
-              Tax (<span x-text="settings.taxRate"></span>%):
-              <span x-text="fmt(taxAmount())"></span>
-            </div>
             <div class="small opacity-75 mb-1">GRAND TOTAL</div>
             <div class="fw-bold fs-3" x-text="fmt(grandTotal())"></div>
           </div>
@@ -433,5 +449,7 @@
   <!-- end settings view -->
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </body>
 </html>
