@@ -176,19 +176,19 @@
           </tbody>
           <tfoot class="table-light">
             <tr>
-              <td colspan="3" class="text-end fw-semibold pe-3">Subtotal:</td>
-              <td class="fw-semibold" x-text="fmt(materialsTotal())"></td>
-              <td></td>
+              <td colspan="3" class="text-end fw-semibold pe-3 py-1">Subtotal:</td>
+              <td class="fw-semibold py-1" x-text="fmt(materialsTotal())"></td>
+              <td class="py-1"></td>
             </tr>
             <tr x-show="settings.taxRate > 0" class="text-muted small">
-              <td colspan="3" class="text-end pe-3">Tax (<span x-text="settings.taxRate"></span>%):</td>
-              <td x-text="fmt(materialsTotal() * settings.taxRate / 100)"></td>
-              <td></td>
+              <td colspan="3" class="text-end pe-3 py-0">Tax (<span x-text="settings.taxRate"></span>%):</td>
+              <td class="py-0" x-text="fmt(materialsTotal() * settings.taxRate / 100)"></td>
+              <td class="py-0"></td>
             </tr>
             <tr x-show="settings.taxRate > 0">
-              <td colspan="3" class="text-end fw-bold pe-3 border-top">Total with Tax:</td>
-              <td class="fw-bold border-top" x-text="fmt(materialsTotal() * (1 + settings.taxRate / 100))"></td>
-              <td class="border-top"></td>
+              <td colspan="3" class="text-end fw-bold pe-3 py-1 border-top">Total with Tax:</td>
+              <td class="fw-bold py-1 border-top" x-text="fmt(materialsTotal() * (1 + settings.taxRate / 100))"></td>
+              <td class="py-1 border-top"></td>
             </tr>
           </tfoot>
         </table>
@@ -243,19 +243,19 @@
           </tbody>
           <tfoot class="table-light">
             <tr>
-              <td colspan="3" class="text-end fw-semibold pe-3">Subtotal:</td>
-              <td class="fw-semibold" x-text="fmt(machineryTotal())"></td>
-              <td></td>
+              <td colspan="3" class="text-end fw-semibold pe-3 py-1">Subtotal:</td>
+              <td class="fw-semibold py-1" x-text="fmt(machineryTotal())"></td>
+              <td class="py-1"></td>
             </tr>
             <tr x-show="settings.taxRate > 0" class="text-muted small">
-              <td colspan="3" class="text-end pe-3">Tax (<span x-text="settings.taxRate"></span>%):</td>
-              <td x-text="fmt(machineryTotal() * settings.taxRate / 100)"></td>
-              <td></td>
+              <td colspan="3" class="text-end pe-3 py-0">Tax (<span x-text="settings.taxRate"></span>%):</td>
+              <td class="py-0" x-text="fmt(machineryTotal() * settings.taxRate / 100)"></td>
+              <td class="py-0"></td>
             </tr>
             <tr x-show="settings.taxRate > 0">
-              <td colspan="3" class="text-end fw-bold pe-3 border-top">Total with Tax:</td>
-              <td class="fw-bold border-top" x-text="fmt(machineryTotal() * (1 + settings.taxRate / 100))"></td>
-              <td class="border-top"></td>
+              <td colspan="3" class="text-end fw-bold pe-3 py-1 border-top">Total with Tax:</td>
+              <td class="fw-bold py-1 border-top" x-text="fmt(machineryTotal() * (1 + settings.taxRate / 100))"></td>
+              <td class="py-1 border-top"></td>
             </tr>
           </tfoot>
         </table>
