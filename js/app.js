@@ -2,6 +2,16 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('estimatorApp', () => ({
     currentView: 'estimator',
     settingsSaved: false,
+    onboardingStep: 0,
+
+    authUser: null,
+    authEmail: '',
+    authPassword: '',
+    authError: '',
+    authLoading: false,
+    syncStatus: '',
+    showCreateAccount: false,
+    firebaseReady: false,
 
     estimate: {
       customerName: '',
@@ -9,6 +19,7 @@ document.addEventListener('alpine:init', () => {
       estimateDate: new Date().toISOString().split('T')[0],
       projectName: '',
       scopeOfWork: [],
+      photos: [],
       startDate: '',
       completionDate: '',
       costs: {
@@ -27,10 +38,13 @@ document.addEventListener('alpine:init', () => {
       website: '',
       licenseNumbers: '',
       taxRate: 0,
-      primaryColor: '#2e7d32',
-      accentColor:  '#f9a825',
+      primaryColor: '#3D5A99',
+      accentColor:  '#C49A2C',
+      titleColor:   '#3D5A99',
       logo: null,
-      termsAndConditions: ''
+      termsAndConditions: `50% deposit due at project start, balance due upon completion.
+
+Any additional work beyond the services listed above may incur extra charges.`
     },
 
     init() {
@@ -38,9 +52,47 @@ document.addEventListener('alpine:init', () => {
       if (saved) {
         try { Object.assign(this.settings, JSON.parse(saved)); } catch (_) {}
       }
+      // Migrate any saved green primary or yellow/orange accent to new blue/gold defaults
+      const isGreenish   = (h) => { const c = parseInt((h||'').replace('#','').slice(2,4),16); const r = parseInt((h||'').replace('#','').slice(0,2),16); return c > r + 30; };
+      const isYellowish  = (h) => { const r = parseInt((h||'').replace('#','').slice(0,2),16); const b = parseInt((h||'').replace('#','').slice(4,6),16); return r > 180 && b < 80; };
+      if (isGreenish(this.settings.primaryColor)) {
+        this.settings.primaryColor = '#3D5A99';
+        this.settings.titleColor   = '#3D5A99';
+      }
+      if (isYellowish(this.settings.accentColor)) {
+        this.settings.accentColor = '#C49A2C';
+      }
       this.applyTheme();
       this.$watch('settings.primaryColor', () => this.applyTheme());
       this.$watch('settings.accentColor',  () => this.applyTheme());
+      if (!localStorage.getItem('onboarding-complete')) {
+        this.onboardingStep = 1;
+      }
+
+      this.firebaseReady = !!window._fbReady;
+      if (this.firebaseReady) {
+        fbOnAuthChange(async (user) => {
+          this.authUser = user ? { uid: user.uid, email: user.email } : null;
+          if (user) {
+            try {
+              const cloud = await fbLoadSettings(user.uid);
+              if (cloud) {
+                Object.assign(this.settings, cloud);
+                localStorage.setItem('estimator-settings', JSON.stringify(this.settings));
+                this.applyTheme();
+                this.syncStatus = 'loaded';
+                setTimeout(() => { this.syncStatus = ''; }, 3000);
+              }
+            } catch (_) {}
+          }
+        });
+      }
+    },
+
+    finishOnboarding() {
+      localStorage.setItem('estimator-settings', JSON.stringify(this.settings));
+      localStorage.setItem('onboarding-complete', '1');
+      this.onboardingStep = 0;
     },
 
     // --- Color utilities ---
@@ -67,8 +119,8 @@ document.addEventListener('alpine:init', () => {
       return this.isLightColor(hex) ? '#1a1a1a' : '#ffffff';
     },
     applyTheme() {
-      const p = this.settings.primaryColor || '#2e7d32';
-      const a = this.settings.accentColor  || '#f9a825';
+      const p = this.settings.primaryColor || '#3D5A99';
+      const a = this.settings.accentColor  || '#C49A2C';
       const pRgb = this.hexToRgb(p);
       const aRgb = this.hexToRgb(a);
       const pLight  = this.rgbToHex(this.mixWithWhite(pRgb, 0.2));
@@ -123,6 +175,38 @@ document.addEventListener('alpine:init', () => {
     addMachinery()  { this.estimate.costs.machinery.push({ name: '', duration: 1, rate: 0 }); },
     addMisc()       { this.estimate.costs.misc.push({ description: '', amount: 0 }); },
 
+    // --- Photos ---
+    async addPhoto() {
+      if (this.estimate.photos.length >= 20) { alert('Maximum 20 photos per estimate.'); return; }
+      if (window.Capacitor?.isNativePlatform()) {
+        try {
+          const { Camera } = window.Capacitor.Plugins;
+          const image = await Camera.getPhoto({
+            quality: 70, allowEditing: false, resultType: 'dataUrl',
+            source: 'PROMPT', width: 1200, saveToGallery: false, correctOrientation: true
+          });
+          this._pushPhoto(image.dataUrl);
+        } catch (_) {}
+      } else {
+        this.$refs.photoInput.click();
+      }
+    },
+    handlePhotoFile(event) {
+      for (const file of event.target.files) {
+        const reader = new FileReader();
+        reader.onload = (e) => this._pushPhoto(e.target.result);
+        reader.readAsDataURL(file);
+      }
+      event.target.value = '';
+    },
+    _pushPhoto(dataUrl) {
+      const img = new Image();
+      img.onload = () => {
+        this.estimate.photos.push({ id: Date.now() + Math.random(), dataUrl, w: img.naturalWidth, h: img.naturalHeight, description: '' });
+      };
+      img.src = dataUrl;
+    },
+
     // --- Labor stepper (0.5 increments) ---
     decrementLaborDays() {
       const next = Math.round((this.estimate.costs.laborDays - 0.5) * 10) / 10;
@@ -175,6 +259,70 @@ document.addEventListener('alpine:init', () => {
       localStorage.setItem('estimator-settings', JSON.stringify(this.settings));
       this.settingsSaved = true;
       setTimeout(() => { this.settingsSaved = false; }, 3000);
+      if (this.authUser && window._fbReady) {
+        this.syncStatus = 'saving';
+        fbSaveSettings(this.authUser.uid, this.settings)
+          .then(() => { this.syncStatus = 'saved'; setTimeout(() => { this.syncStatus = ''; }, 3000); })
+          .catch(() => { this.syncStatus = 'error'; setTimeout(() => { this.syncStatus = ''; }, 5000); });
+      }
+    },
+
+    // --- Cloud sync ---
+    async signIn() {
+      this.authError = '';
+      this.authLoading = true;
+      try {
+        await fbSignIn(this.authEmail, this.authPassword);
+        this.authPassword = '';
+      } catch (e) {
+        this.authError = this._friendlyAuthError(e.code);
+      } finally { this.authLoading = false; }
+    },
+
+    async createAccount() {
+      this.authError = '';
+      this.authLoading = true;
+      try {
+        await fbCreateAccount(this.authEmail, this.authPassword);
+        this.authPassword = '';
+        this.showCreateAccount = false;
+      } catch (e) {
+        this.authError = this._friendlyAuthError(e.code);
+      } finally { this.authLoading = false; }
+    },
+
+    signOut() { fbSignOut(); },
+
+    async syncFromCloud() {
+      if (!this.authUser || !window._fbReady) return;
+      try {
+        const cloud = await fbLoadSettings(this.authUser.uid);
+        if (cloud) {
+          Object.assign(this.settings, cloud);
+          localStorage.setItem('estimator-settings', JSON.stringify(this.settings));
+          this.applyTheme();
+          this.syncStatus = 'loaded';
+          setTimeout(() => { this.syncStatus = ''; }, 3000);
+        } else {
+          alert('No cloud settings found yet. Save your settings to upload them.');
+        }
+      } catch (_) {
+        this.syncStatus = 'error';
+        setTimeout(() => { this.syncStatus = ''; }, 5000);
+      }
+    },
+
+    _friendlyAuthError(code) {
+      const msgs = {
+        'auth/user-not-found':     'No account found with that email.',
+        'auth/wrong-password':     'Incorrect password.',
+        'auth/invalid-email':      'Please enter a valid email address.',
+        'auth/email-already-in-use': 'An account with this email already exists.',
+        'auth/weak-password':      'Password must be at least 6 characters.',
+        'auth/invalid-credential': 'Incorrect email or password.',
+        'auth/too-many-requests':  'Too many attempts. Please try again later.',
+      };
+      return msgs[code] || 'Something went wrong. Please try again.';
     },
 
     // --- Open estimate from PDF ---
@@ -201,7 +349,7 @@ document.addEventListener('alpine:init', () => {
         Object.assign(this.estimate, {
           customerName: '', customerAddress: '',
           estimateDate: new Date().toISOString().split('T')[0],
-          projectName: '', scopeOfWork: [],
+          projectName: '', scopeOfWork: [], photos: [],
           startDate: '', completionDate: '',
           costs: { materials: [], machinery: [], laborDays: 1.0, laborDailyRate: 400.00, misc: [] }
         }, data);
@@ -219,14 +367,14 @@ document.addEventListener('alpine:init', () => {
       Object.assign(this.estimate, {
         customerName: '', customerAddress: '',
         estimateDate: new Date().toISOString().split('T')[0],
-        projectName: '', scopeOfWork: [],
+        projectName: '', scopeOfWork: [], photos: [],
         startDate: '', completionDate: '',
         costs: { materials: [], machinery: [], laborDays: 1.0, laborDailyRate: 400.00, misc: [] }
       });
     },
 
     // --- PDF Generation ---
-    generatePDF() {
+    async generatePDF() {
       const e = this.estimate;
       const s = this.settings;
 
@@ -237,10 +385,11 @@ document.addEventListener('alpine:init', () => {
 
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+      const subjectData = { ...this.estimate, photos: [] }; // photos are in the PDF itself, not metadata
       doc.setProperties({
         title:   `Estimate – ${e.customerName}`,
         author:  s.companyName || '',
-        subject: JSON.stringify(this.estimate)
+        subject: JSON.stringify(subjectData)
       });
 
       const PW  = doc.internal.pageSize.getWidth();
@@ -248,12 +397,12 @@ document.addEventListener('alpine:init', () => {
       const M   = 40;
       const CW  = PW - M * 2;
 
-      const GREEN    = this.hexToRgb(s.primaryColor || '#2e7d32');
+      const GREEN    = this.hexToRgb(s.primaryColor || '#3D5A99');
       const LT_GREEN = this.mixWithWhite(GREEN, 0.2);
       const VLT      = this.mixWithWhite(GREEN, 0.09);
-      const AMBER    = this.hexToRgb(s.accentColor  || '#f9a825');
-      const GREEN_TEXT  = this.isLightColor(s.primaryColor || '#2e7d32') ? [26,26,26] : [255,255,255];
-      const AMBER_TEXT  = this.isLightColor(s.accentColor  || '#f9a825') ? [26,26,26] : [255,255,255];
+      const AMBER    = this.hexToRgb(s.accentColor  || '#C49A2C');
+      const GREEN_TEXT  = this.isLightColor(s.primaryColor || '#3D5A99') ? [26,26,26] : [255,255,255];
+      const AMBER_TEXT  = this.isLightColor(s.accentColor  || '#C49A2C') ? [26,26,26] : [255,255,255];
       const GRAY     = [110, 110, 110];
 
       const money = (n) => '$' + (+(n) || 0).toFixed(2);
@@ -284,9 +433,10 @@ document.addEventListener('alpine:init', () => {
       }
 
       // ---- Title ----
+      const TITLE_COLOR = this.hexToRgb(s.titleColor || s.primaryColor || '#3D5A99');
       doc.setFontSize(22);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(...GREEN);
+      doc.setTextColor(...TITLE_COLOR);
       doc.text('Project Estimate', M, y + 20);
       if (e.projectName) {
         doc.setFontSize(10);
@@ -466,6 +616,54 @@ document.addEventListener('alpine:init', () => {
       });
       y = doc.lastAutoTable.finalY + 14;
 
+      // ---- Project Photos ----
+      const photosData = (e.photos || []).filter(p => p.dataUrl);
+      if (photosData.length > 0) {
+        if (y > PH - 200) { doc.addPage(); y = M; }
+        doc.setDrawColor(...GREEN);
+        doc.setLineWidth(1.5);
+        doc.line(M, y, M + CW, y);
+        y += 12;
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...GREEN);
+        doc.text('PROJECT PHOTOS', M, y);
+        y += 16;
+
+        const photoW  = (CW - 14) / 2;
+        const maxPhH  = 130;
+        const descH   = 18;
+        const rowH    = maxPhH + descH;
+        let rowY = y;
+
+        for (let i = 0; i < photosData.length; i++) {
+          const col = i % 2;
+          if (col === 0 && i > 0) {
+            rowY += rowH;
+            if (rowY + rowH > PH - M) { doc.addPage(); rowY = M; }
+          }
+          const px = M + col * (photoW + 14);
+          const ph = photosData[i];
+          try {
+            const fmt = ph.dataUrl.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+            let dw = photoW, dh = maxPhH;
+            if (ph.w && ph.h) {
+              const ratio = Math.min(photoW / ph.w, maxPhH / ph.h);
+              dw = ph.w * ratio;
+              dh = ph.h * ratio;
+            }
+            doc.addImage(ph.dataUrl, fmt, px, rowY, dw, dh);
+          } catch (_) {}
+          if (ph.description) {
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'italic');
+            doc.setTextColor(...GRAY);
+            doc.text(doc.splitTextToSize(ph.description, photoW)[0], px, rowY + maxPhH + 6);
+          }
+        }
+        y = rowY + rowH + 10;
+      }
+
       // ---- Company contact footer ----
       const contactParts = [
         s.companyName, s.phone, s.email, s.website,
@@ -504,7 +702,17 @@ document.addEventListener('alpine:init', () => {
 
       // ---- Save ----
       const safeName = e.customerName.replace(/[^a-z0-9]/gi, '_');
-      doc.save(`${safeName}_${e.estimateDate || 'draft'}.pdf`);
+      const fileName = `${safeName}_${e.estimateDate || 'draft'}.pdf`;
+
+      if (window.Capacitor?.isNativePlatform()) {
+        const base64 = doc.output('datauristring').split(',')[1];
+        const { Filesystem, Share } = window.Capacitor.Plugins;
+        await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
+        const { uri } = await Filesystem.getUri({ path: fileName, directory: 'CACHE' });
+        await Share.share({ title: fileName, url: uri, dialogTitle: 'Save or share your estimate' });
+      } else {
+        doc.save(fileName);
+      }
     }
   }));
 });
