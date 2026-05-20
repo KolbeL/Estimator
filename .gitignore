@@ -1,0 +1,15 @@
+node_modules/
+www/
+*.pdf
+
+# Firebase config contains API keys — never commit
+js/firebase-config.js
+
+# Android build artifacts
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+
+# Electron build output
+.claude/worktrees/electron-setup/dist/
