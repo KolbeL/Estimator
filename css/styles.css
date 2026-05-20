@@ -1,16 +1,16 @@
 /* Theme defaults — overridden at runtime via applyTheme() */
 :root {
-  --theme-primary:       #2e7d32;
-  --theme-primary-rgb:   46, 125, 50;
-  --theme-primary-light: #e8f5e9;
-  --theme-primary-vlight:#f1f8e9;
+  --theme-primary:       #3D5A99;
+  --theme-primary-rgb:   61, 90, 153;
+  --theme-primary-light: #d0d8ee;
+  --theme-primary-vlight:#e8ecf6;
   --theme-primary-text:  #ffffff;
-  --theme-accent:        #f9a825;
+  --theme-accent:        #C49A2C;
   --theme-accent-text:   #1a1a1a;
 }
 
 body {
-  background-color: #f4f6f4;
+  background-color: #f4f5f8;
   font-family: 'Segoe UI', Arial, sans-serif;
 }
 

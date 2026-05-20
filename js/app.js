@@ -13,6 +13,12 @@ document.addEventListener('alpine:init', () => {
     showCreateAccount: false,
     firebaseReady: false,
 
+    openModal: false,
+    openTab: 'pdf',
+    cloudEstimates: [],
+    cloudEstimatesLoading: false,
+    cloudSaveStatus: '',
+
     estimate: {
       customerName: '',
       customerAddress: '',
@@ -325,6 +331,98 @@ Any additional work beyond the services listed above may incur extra charges.`
       return msgs[code] || 'Something went wrong. Please try again.';
     },
 
+    // --- Cloud estimate save / open ---
+    openEstimateModal() {
+      this.openModal = true;
+      this.openTab = (this.authUser && this.firebaseReady) ? 'cloud' : 'pdf';
+      if (this.authUser && this.firebaseReady) this.fetchCloudEstimates();
+    },
+
+    async fetchCloudEstimates() {
+      if (!this.authUser || !window._fbReady) return;
+      this.cloudEstimatesLoading = true;
+      try {
+        this.cloudEstimates = await fbListEstimates(this.authUser.uid);
+      } catch (_) {
+        this.cloudEstimates = [];
+      } finally {
+        this.cloudEstimatesLoading = false;
+      }
+    },
+
+    async saveEstimateToCloud() {
+      if (!this.authUser || !window._fbReady) return;
+      if (!this.estimate.customerName.trim()) {
+        alert('Please enter a customer name before saving.');
+        return;
+      }
+      this.cloudSaveStatus = 'saving';
+      try {
+        const compressed = await Promise.all(
+          (this.estimate.photos || []).map(p => this._compressPhotoForCloud(p))
+        );
+        await fbSaveEstimate(this.authUser.uid, this.estimate, this.grandTotal(), compressed);
+        this.cloudSaveStatus = 'saved';
+        setTimeout(() => { this.cloudSaveStatus = ''; }, 3000);
+      } catch (e) {
+        console.error(e);
+        this.cloudSaveStatus = 'error';
+        setTimeout(() => { this.cloudSaveStatus = ''; }, 5000);
+      }
+    },
+
+    async loadCloudEstimate(est) {
+      if (!confirm(`Load "${est.customerName || 'this estimate'}"? Your current estimate will be replaced.`)) return;
+      this.openModal = false;
+      try {
+        const full = await fbLoadEstimate(this.authUser.uid, est.id);
+        if (!full) { alert('Could not load estimate from cloud.'); return; }
+        const { id, savedAt, grandTotal, photoCount, ...data } = full;
+        if (data.scopeOfWork) {
+          data.scopeOfWork = data.scopeOfWork.map(i => ({ _id: i._id || Date.now() + Math.random(), ...i }));
+        }
+        this._resetEstimate();
+        Object.assign(this.estimate, data);
+        this.currentView = 'estimator';
+      } catch (e) {
+        alert('Failed to load estimate from cloud.');
+      }
+    },
+
+    async deleteCloudEstimate(est) {
+      if (!confirm(`Delete "${est.customerName || 'this estimate'}" from the cloud? This cannot be undone.`)) return;
+      try {
+        await fbDeleteEstimate(this.authUser.uid, est.id);
+        this.cloudEstimates = this.cloudEstimates.filter(e => e.id !== est.id);
+      } catch (_) {
+        alert('Failed to delete. Please try again.');
+      }
+    },
+
+    async _compressPhotoForCloud(photo) {
+      if (!photo.dataUrl) return photo;
+      return new Promise(res => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 1000;
+          let w = img.naturalWidth, h = img.naturalHeight;
+          if (w > MAX || h > MAX) {
+            const r = Math.min(MAX / w, MAX / h);
+            w = Math.round(w * r); h = Math.round(h * r);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          res({ ...photo, dataUrl: canvas.toDataURL('image/jpeg', 0.65), w, h });
+        };
+        img.src = photo.dataUrl;
+      });
+    },
+
+    async _resolvePhotoDataUrl(photo) {
+      return photo.dataUrl || null;
+    },
+
     // --- Open estimate from PDF ---
     async openEstimatePDF(event) {
       const file = event.target.files[0];
@@ -361,9 +459,18 @@ Any additional work beyond the services listed above may incur extra charges.`
       }
     },
 
-    // --- Clear estimate ---
-    clearEstimate() {
-      if (!confirm('Clear all estimate data? This cannot be undone.')) return;
+    // --- New / clear estimate ---
+    newEstimate() {
+      const hasData = this.estimate.customerName || this.estimate.projectName ||
+        this.estimate.scopeOfWork.length || this.estimate.costs.materials.length ||
+        this.estimate.costs.machinery.length || this.estimate.costs.misc.length ||
+        this.estimate.photos.length;
+      if (hasData && !confirm('Start a new estimate? Your current data will be cleared.')) return;
+      this._resetEstimate();
+      this.currentView = 'estimator';
+    },
+
+    _resetEstimate() {
       Object.assign(this.estimate, {
         customerName: '', customerAddress: '',
         estimateDate: new Date().toISOString().split('T')[0],
@@ -371,6 +478,11 @@ Any additional work beyond the services listed above may incur extra charges.`
         startDate: '', completionDate: '',
         costs: { materials: [], machinery: [], laborDays: 1.0, laborDailyRate: 400.00, misc: [] }
       });
+    },
+
+    clearEstimate() {
+      if (!confirm('Clear all estimate data? This cannot be undone.')) return;
+      this._resetEstimate();
     },
 
     // --- PDF Generation ---
@@ -617,7 +729,15 @@ Any additional work beyond the services listed above may incur extra charges.`
       y = doc.lastAutoTable.finalY + 14;
 
       // ---- Project Photos ----
-      const photosData = (e.photos || []).filter(p => p.dataUrl);
+      const photosData = (await Promise.all(
+        (e.photos || [])
+          .filter(p => p.dataUrl || p.url)
+          .map(async p => {
+            if (p.dataUrl) return p;
+            const dataUrl = await this._resolvePhotoDataUrl(p);
+            return dataUrl ? { ...p, dataUrl } : null;
+          })
+      )).filter(Boolean);
       if (photosData.length > 0) {
         if (y > PH - 200) { doc.addPage(); y = M; }
         doc.setDrawColor(...GREEN);
