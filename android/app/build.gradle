@@ -8,10 +8,10 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.kolbe.quickprojectestimator"
+    namespace = "com.sodamoney.quickprojectestimator"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.kolbe.quickprojectestimator"
+        applicationId "com.sodamoney.quickprojectestimator"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

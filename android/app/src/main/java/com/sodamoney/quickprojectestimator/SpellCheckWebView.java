@@ -1,4 +1,4 @@
-package com.kolbe.quickprojectestimator;
+package com.sodamoney.quickprojectestimator;
 
 import android.content.Context;
 import android.text.InputType;

@@ -1,4 +1,4 @@
-package com.kolbe.quickprojectestimator;
+package com.sodamoney.quickprojectestimator;
 
 import com.getcapacitor.BridgeActivity;
 
