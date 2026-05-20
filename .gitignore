@@ -5,6 +5,12 @@ www/
 # Firebase config contains API keys — never commit
 js/firebase-config.js
 
+# Claude internal files
+.claude/
+
+# Affinity Designer lock files
+*.af~lock~
+
 # Android build artifacts
 android/.gradle/
 android/app/build/
