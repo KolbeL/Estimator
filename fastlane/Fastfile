@@ -1,0 +1,33 @@
+default_platform(:android)
+
+platform :android do
+
+  desc "Build and upload a new release to Google Play internal testing"
+  lane :deploy do |options|
+    version = options[:version] || "next"
+
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      project_dir: "android/",
+      print_command: false
+    )
+
+    upload_to_play_store(
+      track: "internal",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      release_status: "draft",
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+
+    aab_src = "android/app/build/outputs/bundle/release/app-release.aab"
+    aab_dst = "QPE_release_#{version}.aab"
+    FileUtils.cp(aab_src, aab_dst)
+    UI.success("Saved to #{aab_dst}")
+  end
+
+end

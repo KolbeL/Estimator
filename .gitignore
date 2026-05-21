@@ -19,3 +19,9 @@ android/local.properties
 
 # Electron build output
 .claude/worktrees/electron-setup/dist/
+
+# Fastlane — service account key must never be committed
+fastlane/play-store-key.json
+
+# Release bundles
+*.aab
