@@ -16,6 +16,7 @@ platform :android do
     upload_to_play_store(
       track: "internal",
       aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      mapping: "android/app/build/outputs/native-debug-symbols/release/native-debug-symbols.zip",
       release_status: "draft",
       skip_upload_apk: true,
       skip_upload_metadata: true,
