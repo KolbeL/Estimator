@@ -18,6 +18,7 @@ document.addEventListener('alpine:init', () => {
     cloudEstimates: [],
     cloudEstimatesLoading: false,
     cloudSaveStatus: '',
+    loadedCloudId: null,
 
     estimate: {
       customerName: '',
@@ -171,6 +172,27 @@ Any additional work beyond the services listed above may incur extra charges.`
       this.dropIndex = null;
     },
     scopeDragEnd() {
+      this.dragIndex = null;
+      this.dropIndex = null;
+    },
+    touchDragStart(evt, i) {
+      this.dragIndex = i;
+    },
+    touchDragMove(evt) {
+      const touch = evt.touches[0];
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const row = el?.closest('[data-scope-index]');
+      if (row) {
+        const j = +row.dataset.scopeIndex;
+        if (j !== this.dragIndex) this.dropIndex = j;
+      }
+    },
+    touchDragEnd() {
+      if (this.dragIndex !== null && this.dropIndex !== null && this.dragIndex !== this.dropIndex) {
+        const arr = this.estimate.scopeOfWork;
+        const moved = arr.splice(this.dragIndex, 1)[0];
+        arr.splice(this.dropIndex, 0, moved);
+      }
       this.dragIndex = null;
       this.dropIndex = null;
     },
@@ -361,7 +383,8 @@ Any additional work beyond the services listed above may incur extra charges.`
         const compressed = await Promise.all(
           (this.estimate.photos || []).map(p => this._compressPhotoForCloud(p))
         );
-        await fbSaveEstimate(this.authUser.uid, this.estimate, this.grandTotal(), compressed);
+        const savedId = await fbSaveEstimate(this.authUser.uid, this.estimate, this.grandTotal(), compressed, this.loadedCloudId);
+        this.loadedCloudId = savedId;
         this.cloudSaveStatus = 'saved';
         setTimeout(() => { this.cloudSaveStatus = ''; }, 3000);
       } catch (e) {
@@ -382,6 +405,7 @@ Any additional work beyond the services listed above may incur extra charges.`
           data.scopeOfWork = data.scopeOfWork.map(i => ({ _id: i._id || Date.now() + Math.random(), ...i }));
         }
         this._resetEstimate();
+        this.loadedCloudId = id;
         Object.assign(this.estimate, data);
         this.currentView = 'estimator';
       } catch (e) {
@@ -471,6 +495,7 @@ Any additional work beyond the services listed above may incur extra charges.`
     },
 
     _resetEstimate() {
+      this.loadedCloudId = null;
       Object.assign(this.estimate, {
         customerName: '', customerAddress: '',
         estimateDate: new Date().toISOString().split('T')[0],

@@ -36,8 +36,8 @@ async function fbLoadSettings(uid) {
   return snap.exists ? snap.data() : null;
 }
 
-async function fbSaveEstimate(uid, estimate, grandTotal, compressedPhotos) {
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+async function fbSaveEstimate(uid, estimate, grandTotal, compressedPhotos, existingId) {
+  const id = existingId || (Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
   const estimateRef = window._fbDb.doc(`users/${uid}/estimates/${id}`);
 
   // Save estimate metadata without photos

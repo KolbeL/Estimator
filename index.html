@@ -285,6 +285,7 @@
         <div>
           <template x-for="(item, i) in estimate.scopeOfWork" :key="item._id">
             <div class="d-flex align-items-stretch gap-2 mb-2 scope-row"
+              :data-scope-index="i"
               draggable="true"
               @dragstart="scopeDragStart($event, i)"
               @dragover.prevent="scopeDragOver($event, i)"
@@ -297,7 +298,10 @@
                 'scope-drop-below': dropIndex === i && dragIndex < i
               }">
               <div class="drag-handle text-muted d-flex align-items-center justify-content-center px-1"
-                style="min-width:28px; cursor:grab;">
+                style="min-width:28px; cursor:grab; touch-action:none;"
+                @touchstart.prevent="touchDragStart($event, i)"
+                @touchmove.prevent="touchDragMove($event)"
+                @touchend.prevent="touchDragEnd()">
                 <i class="bi bi-grip-vertical fs-4"></i>
               </div>
               <div class="flex-grow-1">
@@ -360,25 +364,6 @@
       </div>
     </div>
 
-    <!-- Timing -->
-    <div class="card mb-4">
-      <div class="card-header bg-primary-theme py-2">
-        <h6 class="mb-0"><i class="bi bi-calendar-range me-1"></i>Estimated Timing</h6>
-      </div>
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">Start Date</label>
-            <input type="date" class="form-control" x-model="estimate.startDate" />
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-semibold">Completion Date</label>
-            <input type="date" class="form-control" x-model="estimate.completionDate" />
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Materials -->
     <div class="card mb-4">
       <div class="card-header bg-primary-theme py-2 d-flex justify-content-between align-items-center">
@@ -395,11 +380,11 @@
           x-show="estimate.costs.materials.length > 0">
           <thead class="table-light">
             <tr>
-              <th>Item Name</th>
-              <th style="width:110px">Quantity</th>
-              <th style="width:140px">Unit Price</th>
-              <th style="width:110px">Line Total</th>
-              <th style="width:44px"></th>
+              <th>Item</th>
+              <th style="width:60px">Qty</th>
+              <th style="width:80px">Price</th>
+              <th style="width:65px">Total</th>
+              <th style="width:36px"></th>
             </tr>
           </thead>
           <tbody>
@@ -407,13 +392,8 @@
               <tr>
                 <td><input type="text" class="form-control form-control-sm" x-model="m.name" placeholder="Sod" spellcheck="true" autocorrect="on" /></td>
                 <td><input type="number" class="form-control form-control-sm" x-model.number="m.qty" min="0" step="1" /></td>
-                <td>
-                  <div class="input-group input-group-sm">
-                    <span class="input-group-text">$</span>
-                    <input type="number" class="form-control" x-model.number="m.unitPrice" min="0" step="0.01" />
-                  </div>
-                </td>
-                <td class="fw-semibold" x-text="fmt((+m.qty||0)*(+m.unitPrice||0))"></td>
+                <td><input type="number" class="form-control form-control-sm" x-model.number="m.unitPrice" min="0" step="0.01" /></td>
+                <td class="fw-semibold small" x-text="fmt((+m.qty||0)*(+m.unitPrice||0))"></td>
                 <td>
                   <button class="btn btn-outline-danger btn-sm p-1" @click="estimate.costs.materials.splice(i,1)">
                     <i class="bi bi-trash"></i>
@@ -462,11 +442,11 @@
           x-show="estimate.costs.machinery.length > 0">
           <thead class="table-light">
             <tr>
-              <th>Equipment Name</th>
-              <th style="width:130px">Duration (days)</th>
-              <th style="width:140px">Daily Rate</th>
-              <th style="width:110px">Line Total</th>
-              <th style="width:44px"></th>
+              <th>Equipment</th>
+              <th style="width:60px">Days</th>
+              <th style="width:80px">Rate</th>
+              <th style="width:65px">Total</th>
+              <th style="width:36px"></th>
             </tr>
           </thead>
           <tbody>
@@ -474,13 +454,8 @@
               <tr>
                 <td><input type="text" class="form-control form-control-sm" x-model="m.name" placeholder="Excavator" spellcheck="true" autocorrect="on" /></td>
                 <td><input type="number" class="form-control form-control-sm" x-model.number="m.duration" min="0" step="0.5" /></td>
-                <td>
-                  <div class="input-group input-group-sm">
-                    <span class="input-group-text">$</span>
-                    <input type="number" class="form-control" x-model.number="m.rate" min="0" step="0.01" />
-                  </div>
-                </td>
-                <td class="fw-semibold" x-text="fmt((+m.duration||0)*(+m.rate||0))"></td>
+                <td><input type="number" class="form-control form-control-sm" x-model.number="m.rate" min="0" step="0.01" /></td>
+                <td class="fw-semibold small" x-text="fmt((+m.duration||0)*(+m.rate||0))"></td>
                 <td>
                   <button class="btn btn-outline-danger btn-sm p-1" @click="estimate.costs.machinery.splice(i,1)">
                     <i class="bi bi-trash"></i>
@@ -577,12 +552,7 @@
               <tr>
                 <td><input type="text" class="form-control form-control-sm" x-model="m.description"
                   placeholder="Permit fees, dump charges…" spellcheck="true" autocorrect="on" /></td>
-                <td>
-                  <div class="input-group input-group-sm">
-                    <span class="input-group-text">$</span>
-                    <input type="number" class="form-control" x-model.number="m.amount" min="0" step="0.01" />
-                  </div>
-                </td>
+                <td><input type="number" class="form-control form-control-sm" x-model.number="m.amount" min="0" step="0.01" /></td>
                 <td>
                   <button class="btn btn-outline-danger btn-sm p-1" @click="estimate.costs.misc.splice(i,1)">
                     <i class="bi bi-trash"></i>
@@ -599,6 +569,25 @@
             </tr>
           </tfoot>
         </table>
+      </div>
+    </div>
+
+    <!-- Timing -->
+    <div class="card mb-4">
+      <div class="card-header bg-primary-theme py-2">
+        <h6 class="mb-0"><i class="bi bi-calendar-range me-1"></i>Estimated Timing</h6>
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Start Date</label>
+            <input type="date" class="form-control" x-model="estimate.startDate" />
+          </div>
+          <div class="col-md-3">
+            <label class="form-label fw-semibold">Completion Date</label>
+            <input type="date" class="form-control" x-model="estimate.completionDate" />
+          </div>
+        </div>
       </div>
     </div>
 
