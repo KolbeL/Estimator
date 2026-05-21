@@ -530,18 +530,48 @@ Any additional work beyond the services listed above may incur extra charges.`
 
       let y = M;
 
-      // ---- Logo ----
+      // ---- Company header: logo left, name/contact right ----
+      const hasCompanyInfo = s.companyName || s.phone || s.email || s.website || s.licenseNumbers;
+
+      // Logo — left side
       if (s.logo) {
         try {
           const fmt = s.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG';
           const img = new Image();
           img.src = s.logo;
-          const maxW = 130, maxH = 60;
+          const maxW = 130, maxH = hasCompanyInfo ? 45 : 60;
           const ratio = Math.min(maxW / img.naturalWidth, maxH / img.naturalHeight);
           const lw = img.naturalWidth * ratio;
           const lh = img.naturalHeight * ratio;
-          doc.addImage(s.logo, fmt, PW - M - lw, y, lw, lh);
+          doc.addImage(s.logo, fmt, M, y, lw, lh);
         } catch (_) {}
+      }
+
+      // Name + contact — right side, right-justified
+      if (hasCompanyInfo) {
+        const RX = PW - M; // right edge
+        if (s.companyName) {
+          doc.setFontSize(16);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...GREEN);
+          doc.text(s.companyName, RX, y + 15, { align: 'right' });
+        }
+        const contactParts = [s.phone, s.email, s.website,
+          s.licenseNumbers ? 'Lic# ' + s.licenseNumbers : ''].filter(Boolean);
+        if (contactParts.length > 0) {
+          doc.setFontSize(8);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...GRAY);
+          doc.text(contactParts.join('  ·  '), RX, y + (s.companyName ? 29 : 15), { align: 'right' });
+        }
+      }
+
+      if (hasCompanyInfo || s.logo) {
+        y += hasCompanyInfo ? 44 : 0;
+        doc.setDrawColor(...GREEN);
+        doc.setLineWidth(0.5);
+        doc.line(M, y, M + CW, y);
+        y += 12;
       }
 
       // ---- Title ----
@@ -784,24 +814,6 @@ Any additional work beyond the services listed above may incur extra charges.`
         y = rowY + rowH + 10;
       }
 
-      // ---- Company contact footer ----
-      const contactParts = [
-        s.companyName, s.phone, s.email, s.website,
-        s.licenseNumbers ? 'Lic# ' + s.licenseNumbers : ''
-      ].filter(Boolean);
-      if (contactParts.length > 0) {
-        doc.setFillColor(...LT_GREEN);
-        const contactText = contactParts.join('  |  ');
-        const lines = doc.splitTextToSize(contactText, CW - 20);
-        const boxH = lines.length * 13 + 12;
-        doc.roundedRect(M, y, CW, boxH, 3, 3, 'F');
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(60, 60, 60);
-        doc.text(lines, M + 10, y + 10, { baseline: 'top' });
-        y += boxH + 14;
-      }
-
       // ---- Terms & Conditions ----
       if (s.termsAndConditions) {
         if (y > PH - 120) { doc.addPage(); y = M; }
@@ -826,10 +838,16 @@ Any additional work beyond the services listed above may incur extra charges.`
 
       if (window.Capacitor?.isNativePlatform()) {
         const base64 = doc.output('datauristring').split(',')[1];
-        const { Filesystem, Share } = window.Capacitor.Plugins;
-        await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
-        const { uri } = await Filesystem.getUri({ path: fileName, directory: 'CACHE' });
-        await Share.share({ title: fileName, url: uri, dialogTitle: 'Save or share your estimate' });
+        const { Filesystem } = window.Capacitor.Plugins;
+        try {
+          await Filesystem.writeFile({ path: fileName, data: base64, directory: 'DOCUMENTS', recursive: true });
+          alert(`PDF saved!\n\n"${fileName}"\n\nFind it in your Files app under Documents.`);
+        } catch (_) {
+          await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
+          const { uri } = await Filesystem.getUri({ path: fileName, directory: 'CACHE' });
+          const { Share } = window.Capacitor.Plugins;
+          await Share.share({ title: fileName, url: uri, dialogTitle: 'Save your estimate PDF' });
+        }
       } else {
         doc.save(fileName);
       }

@@ -22,7 +22,8 @@
   <!-- Onboarding overlay -->
   <template x-if="onboardingStep > 0">
   <div class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
-    style="background:rgba(0,0,0,0.55); z-index:9999;">
+    style="background:rgba(0,0,0,0.55); z-index:9999;"
+    @touchmove.prevent>
 
     <!-- Step 1: Welcome -->
     <div x-show="onboardingStep === 1"
@@ -49,11 +50,12 @@
     <!-- Step 2: Your Details -->
     <div x-show="onboardingStep === 2"
       class="card shadow-lg mx-3"
-      style="max-width:540px; width:100%; border-radius:16px; overflow:hidden;">
-      <div class="card-header bg-primary-theme py-3 text-center">
+      style="max-width:540px; width:100%; border-radius:16px; overflow:hidden; max-height:85vh; display:flex; flex-direction:column;"
+      @touchmove.stop>
+      <div class="card-header bg-primary-theme py-3 text-center" style="flex-shrink:0;">
         <h5 class="mb-0 fw-bold"><i class="bi bi-person-gear me-2"></i>Set Up Your Business</h5>
       </div>
-      <div class="card-body px-4 py-4">
+      <div class="card-body px-4 py-4" style="overflow-y:auto;">
         <p class="text-muted small mb-3">This info appears on every estimate PDF. You can change it anytime in Settings.</p>
         <div class="row g-3 mb-3">
           <div class="col-12">
@@ -98,11 +100,12 @@
     <!-- Step 3: Tax & Terms -->
     <div x-show="onboardingStep === 3"
       class="card shadow-lg mx-3"
-      style="max-width:540px; width:100%; border-radius:16px; overflow:hidden;">
-      <div class="card-header bg-primary-theme py-3 text-center">
+      style="max-width:540px; width:100%; border-radius:16px; overflow:hidden; max-height:85vh; display:flex; flex-direction:column;"
+      @touchmove.stop>
+      <div class="card-header bg-primary-theme py-3 text-center" style="flex-shrink:0;">
         <h5 class="mb-0 fw-bold"><i class="bi bi-file-text me-2"></i>Tax &amp; Terms</h5>
       </div>
-      <div class="card-body px-4 py-4">
+      <div class="card-body px-4 py-4" style="overflow-y:auto;">
         <p class="text-muted small mb-3">These appear on every estimate. You can edit them anytime in Settings.</p>
         <div class="mb-3">
           <label class="form-label fw-semibold">Tax Rate <span class="text-muted fw-normal">(leave 0 to disable)</span></label>
