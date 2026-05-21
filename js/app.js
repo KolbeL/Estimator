@@ -44,9 +44,9 @@ document.addEventListener('alpine:init', () => {
       website: '',
       licenseNumbers: '',
       taxRate: 0,
-      primaryColor: '#3D5A99',
-      accentColor:  '#C49A2C',
-      titleColor:   '#3D5A99',
+      primaryColor: '#3A5890',
+      accentColor:  '#C99C2C',
+      titleColor:   '#3A5890',
       logo: null,
       termsAndConditions: `50% deposit due at project start, balance due upon completion.
 
@@ -62,11 +62,11 @@ Any additional work beyond the services listed above may incur extra charges.`
       const isGreenish   = (h) => { const c = parseInt((h||'').replace('#','').slice(2,4),16); const r = parseInt((h||'').replace('#','').slice(0,2),16); return c > r + 30; };
       const isYellowish  = (h) => { const r = parseInt((h||'').replace('#','').slice(0,2),16); const b = parseInt((h||'').replace('#','').slice(4,6),16); return r > 180 && b < 80; };
       if (isGreenish(this.settings.primaryColor)) {
-        this.settings.primaryColor = '#3D5A99';
-        this.settings.titleColor   = '#3D5A99';
+        this.settings.primaryColor = '#3A5890';
+        this.settings.titleColor   = '#3A5890';
       }
       if (isYellowish(this.settings.accentColor)) {
-        this.settings.accentColor = '#C49A2C';
+        this.settings.accentColor = '#C99C2C';
       }
       this.applyTheme();
       this.$watch('settings.primaryColor', () => this.applyTheme());
@@ -125,8 +125,8 @@ Any additional work beyond the services listed above may incur extra charges.`
       return this.isLightColor(hex) ? '#1a1a1a' : '#ffffff';
     },
     applyTheme() {
-      const p = this.settings.primaryColor || '#3D5A99';
-      const a = this.settings.accentColor  || '#C49A2C';
+      const p = this.settings.primaryColor || '#3A5890';
+      const a = this.settings.accentColor  || '#C99C2C';
       const pRgb = this.hexToRgb(p);
       const aRgb = this.hexToRgb(a);
       const pLight  = this.rgbToHex(this.mixWithWhite(pRgb, 0.2));
@@ -509,12 +509,12 @@ Any additional work beyond the services listed above may incur extra charges.`
       const M   = 40;
       const CW  = PW - M * 2;
 
-      const GREEN    = this.hexToRgb(s.primaryColor || '#3D5A99');
+      const GREEN    = this.hexToRgb(s.primaryColor || '#3A5890');
       const LT_GREEN = this.mixWithWhite(GREEN, 0.2);
       const VLT      = this.mixWithWhite(GREEN, 0.09);
-      const AMBER    = this.hexToRgb(s.accentColor  || '#C49A2C');
-      const GREEN_TEXT  = this.isLightColor(s.primaryColor || '#3D5A99') ? [26,26,26] : [255,255,255];
-      const AMBER_TEXT  = this.isLightColor(s.accentColor  || '#C49A2C') ? [26,26,26] : [255,255,255];
+      const AMBER    = this.hexToRgb(s.accentColor  || '#C99C2C');
+      const GREEN_TEXT  = this.isLightColor(s.primaryColor || '#3A5890') ? [26,26,26] : [255,255,255];
+      const AMBER_TEXT  = this.isLightColor(s.accentColor  || '#C99C2C') ? [26,26,26] : [255,255,255];
       const GRAY     = [110, 110, 110];
 
       const money = (n) => '$' + (+(n) || 0).toFixed(2);
@@ -575,7 +575,7 @@ Any additional work beyond the services listed above may incur extra charges.`
       }
 
       // ---- Title ----
-      const TITLE_COLOR = this.hexToRgb(s.titleColor || s.primaryColor || '#3D5A99');
+      const TITLE_COLOR = this.hexToRgb(s.titleColor || s.primaryColor || '#3A5890');
       doc.setFontSize(22);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...TITLE_COLOR);
