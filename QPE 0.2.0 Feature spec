@@ -1,0 +1,98 @@
+0.2.0 - growing QPE to allow for more detailed estimates with easier pricing and materials calculation.
+
+Allow for specified trades within the ap - we need to discuss the best method to allow users to change the unit they’re using for each item within a bid as well as allow for waste calculations. 
+Hardscape & Exterior Specialties
+These trades mirror your landscaping logic but often require higher-precision material tracking (like stone or metal).
+Fencing & Decking Contractors: They need to calculate linear footage, post spacing, and hardware counts (screws, brackets, concrete bags).
+Paving & Driveway Specialists: High-cost materials (asphalt, pavers, crushed stone) require exact square footage and depth calculations.
+Pool & Spa Installers: They involve complex excavation volumes and multi-stage plumbing/electrical estimates.
+General Landscapers: They involve multiple plants, sprinkler systems, grass, rock, and more.
+Interior Finish & Surface Trades
+These trades are highly visual and require precise waste-factor calculations for expensive materials.
+Flooring Installers: Calculating tile, hardwood, or LVP with a "waste percentage" (usually 10–15%) is a core pain point you can solve.
+Cabinetry & Millwork: Estimating linear feet of trim, crown molding, and the labor for custom cabinetry installation.
+Countertop Fabricators: Estimating slab usage based on square footage, including cutouts for sinks and edge treatments.
+Systems & Structural Trades
+These trades focus less on aesthetics and more on "runs" (linear feet of wire or pipe) and "fixtures."
+HVAC Technicians: Estimating ductwork runs, unit sizing (BTUs), and refrigerant line sets.
+Drywall & Insulation Contractors: Calculating sheet counts, joint compound needs, and R-value material thickness.
+Solar Panel Installers: Estimating rack systems based on roof pitch and electrical conduit runs.
+
+Comparison of Trade Estimating Needs
+Trade
+Key Calculation Variable
+Primary "Waste" Factor
+Flooring
+Square Footage (Surface)
+High (Pattern matching/cuts)
+Fencing
+Linear Footage (Perimeter)
+Low (Standard post intervals)
+Drywall
+Sheet Count (Wall Surface)
+Medium (Tapering/Scraps)
+Hardscaping
+Cubic Yardage (Volume)
+Medium (Compaction/Settling)
+HVAC
+BTU / Linear Run (Load)
+Low (Fixed component costs)
+
+
+Expanding Your App's Utility
+To make your app a "must-have" for these new trades, consider adding Variable Templates:
+Example: A "Drywall Template" would automatically calculate how many buckets of mud and rolls of tape are needed based on the number of 4x8 sheets estimated.
+—-------------------------------
+To expand your app into these new trades,we want to get trade specific calculations built into the app
+
+1. Original Trade List 
+Trade
+Must-Have Feature
+Specific Logic/Variables
+Landscapers
+Volume Calculator
+Calculate cubic yardage for mulch, topsoil, or gravel based on depth (in inches).
+Painters
+Surface Area Logic
+Automatically subtract "voids" (windows/doors) from total square footage.
+Plumbers
+Fixture & Run Counts
+Linear feet of pipe + "per fixture" labor (sinks, toilets, water heaters).
+Roofers
+Pitch & Square Factor
+Convert flat square footage into "squares" (100 sq ft) based on roof pitch/slope.
+Interior Designers
+Finish Schedule
+Track individual unit costs for hardware, light fixtures, and bespoke furniture.
+
+
+2. The New Trades (The Expansion List)
+Hardscape & Exterior Specialties
+Fencing & Decking:
+Post Spacing Tool: Auto-calculate post counts based on total linear feet and desired spacing (e.g., 6' or 8').
+Hardware Kit: Auto-add a specific number of brackets, screws, and bags of concrete per post/joist.
+Paving & Driveways:
+Compaction Factor: Add a variable (usually 20%) to material volume to account for stone/asphalt settling after rolling.
+Sub-base Calculator: Separate layers for geotextile fabric, crushed stone, and top course.
+Pool & Spa Installers:
+Excavation Volume: Calculate "truckloads" needed to haul away dirt based on pool dimensions.
+Phase-Based Bidding: Separate the bid into Shell, Plumbing, Tile/Coping, and Equipment.
+Interior Finish & Surface Trades
+Flooring Installers:
+Waste % Toggle: A quick button to add 5%, 10%, or 15% waste based on layout (Straight vs. Herringbone).
+Transition Strips: Auto-prompt for T-molding or transitions at every doorway/threshold.
+Cabinetry & Millwork:
+Linear Foot Labor: Differentiate labor costs for "Base Cabinets" vs. "Wall Cabinets" vs. "Trim."
+Hardware Adder: Quick-count for hinges and pulls to ensure small parts aren't missed.
+Systems & Structural Trades
+Drywall & Insulation:
+Sheet Optimizer: Estimate the number of 4x8 or 4x12 sheets needed; auto-calculate buckets of joint compound and rolls of tape.
+R-Value Selector: For insulation, select the required R-value (thickness) and it updates the material price per square foot.
+Solar Panel Installers:
+Panel Layout: Calculate "Rack Units" and "Inverters" based on the total number of panels in the array.
+Conduit Runs: Linear footage estimator for electrical wiring from the roof to the main panel.
+
+3. "Platform-Wide" 2026 Features
+Regardless of the trade, a modern Android app in 2026 should include these three functional "hooks" to keep users engaged:
+Live Material Pricing: An API integration (like Home Depot or Lowe's) that updates their "Material Cost" field based on current local zip code prices.This must be free, or nearly free for me as well as the consumer. 
+Auto Calculate Materials: Based on the trade selected, the ability to auto calculate and recommend certain components and/or materials costs based on data input in the scope of work. EG - Fence installer lists 185’ of 6’ Steel fencing, four 42” gates, and one 92” double gate - the app should be able to calculate how many posts, how many fencing panels, how many gates, how much concrete and auto fill those entries. This should be possible for all trades, but we’ll pick one to start with (likely landscaping for fencing) 
