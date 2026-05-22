@@ -20,6 +20,9 @@ document.addEventListener('alpine:init', () => {
     cloudSaveStatus: '',
     loadedCloudId: null,
 
+    confirmMessage: '',
+    confirmResolve: null,
+
     estimate: {
       customerName: '',
       customerAddress: '',
@@ -395,7 +398,7 @@ Any additional work beyond the services listed above may incur extra charges.`
     },
 
     async loadCloudEstimate(est) {
-      if (!confirm(`Load "${est.customerName || 'this estimate'}"? Your current estimate will be replaced.`)) return;
+      if (!await this._confirm(`Load "${est.customerName || 'this estimate'}"? Your current estimate will be replaced.`)) return;
       this.openModal = false;
       try {
         const full = await fbLoadEstimate(this.authUser.uid, est.id);
@@ -422,7 +425,7 @@ Any additional work beyond the services listed above may incur extra charges.`
     },
 
     async deleteCloudEstimate(est) {
-      if (!confirm(`Delete "${est.customerName || 'this estimate'}" from the cloud? This cannot be undone.`)) return;
+      if (!await this._confirm(`Delete "${est.customerName || 'this estimate'}" from the cloud? This cannot be undone.`)) return;
       try {
         await fbDeleteEstimate(this.authUser.uid, est.id);
         this.cloudEstimates = this.cloudEstimates.filter(e => e.id !== est.id);
@@ -469,7 +472,7 @@ Any additional work beyond the services listed above may incur extra charges.`
           return;
         }
         const data = JSON.parse(subject);
-        if (!confirm('Load this estimate? Your current data will be replaced.')) return;
+        if (!await this._confirm('Load this estimate? Your current data will be replaced.')) return;
         const { costs, scopeOfWork, photos, ...scalars } = data;
         this._resetEstimate();
         Object.assign(this.estimate, scalars);
@@ -491,14 +494,31 @@ Any additional work beyond the services listed above may incur extra charges.`
     },
 
     // --- New / clear estimate ---
-    newEstimate() {
+    async newEstimate() {
       const hasData = this.estimate.customerName || this.estimate.projectName ||
         this.estimate.scopeOfWork.length || this.estimate.costs.materials.length ||
         this.estimate.costs.machinery.length || this.estimate.costs.misc.length ||
         this.estimate.photos.length;
-      if (hasData && !confirm('Start a new estimate? Your current data will be cleared.')) return;
+      if (hasData && !await this._confirm('Start a new estimate? Your current data will be cleared.')) return;
       this._resetEstimate();
       this.currentView = 'estimator';
+    },
+
+    _confirm(message) {
+      return new Promise(resolve => {
+        this.confirmMessage = message;
+        this.confirmResolve = resolve;
+      });
+    },
+    confirmYes() {
+      if (this.confirmResolve) this.confirmResolve(true);
+      this.confirmMessage = '';
+      this.confirmResolve = null;
+    },
+    confirmNo() {
+      if (this.confirmResolve) this.confirmResolve(false);
+      this.confirmMessage = '';
+      this.confirmResolve = null;
     },
 
     _resetEstimate() {
@@ -517,8 +537,8 @@ Any additional work beyond the services listed above may incur extra charges.`
       this.estimate.costs.misc = [];
     },
 
-    clearEstimate() {
-      if (!confirm('Clear all estimate data? This cannot be undone.')) return;
+    async clearEstimate() {
+      if (!await this._confirm('Clear all estimate data? This cannot be undone.')) return;
       this._resetEstimate();
     },
 
