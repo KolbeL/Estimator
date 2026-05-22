@@ -224,7 +224,7 @@
     <div class="d-flex gap-2">
       <button class="btn btn-outline-light btn-sm nav-btn"
         :class="currentView === 'estimator' ? 'active' : ''"
-        @click="newEstimate()">
+        @click="currentView === 'estimator' ? newEstimate() : (currentView = 'estimator')">
         <i class="bi bi-file-earmark-text me-1"></i>New Estimate
       </button>
       <input type="file" x-ref="openInput" accept=".pdf" class="d-none" @change="openEstimatePDF($event)" />

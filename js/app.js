@@ -507,9 +507,14 @@ Any additional work beyond the services listed above may incur extra charges.`
         customerName: '', customerAddress: '',
         estimateDate: new Date().toISOString().split('T')[0],
         projectName: '', scopeOfWork: [], photos: [],
-        startDate: '', completionDate: '',
-        costs: { materials: [], machinery: [], laborDays: 1.0, laborDailyRate: 400.00, misc: [] }
+        startDate: '', completionDate: ''
       });
+      // Mutate costs in-place to preserve Alpine's reactive Proxy
+      this.estimate.costs.materials = [];
+      this.estimate.costs.machinery = [];
+      this.estimate.costs.laborDays = 1.0;
+      this.estimate.costs.laborDailyRate = 400.00;
+      this.estimate.costs.misc = [];
     },
 
     clearEstimate() {
