@@ -14,8 +14,9 @@ fs.rmSync('www', { recursive: true, force: true });
 fs.mkdirSync('www');
 
 fs.copyFileSync('index.html', 'www/index.html');
-copyDir('js',  'www/js');
-copyDir('css', 'www/css');
-copyDir('img', 'www/img');
+copyDir('js',     'www/js');
+copyDir('css',    'www/css');
+copyDir('img',    'www/img');
+copyDir('vendor', 'www/vendor');
 
 console.log('Build complete → www/');

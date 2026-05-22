@@ -69,7 +69,8 @@ body {
 
 .drag-handle { cursor: grab; }
 .drag-handle:active { cursor: grabbing; }
-.scope-row { transition: opacity 0.15s; }
+.scope-row { transition: opacity 0.2s; }
+.scope-drag-pending { opacity: 0.65; }
 .scope-dragging { opacity: 0.3; }
 
 /* Color picker swatch sizing */

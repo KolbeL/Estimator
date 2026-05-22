@@ -5,17 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quick Project Estimator</title>
   <link rel="icon" type="image/png" href="img/icon.png" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-  <link rel="stylesheet" href="css/styles.css?v=4" />
-  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+  <style>[x-cloak]{display:none!important}</style>
+  <link rel="stylesheet" href="vendor/bootstrap.min.css" />
+  <link rel="stylesheet" href="vendor/bootstrap-icons.min.css" />
+  <link rel="stylesheet" href="css/styles.css?v=5" />
+  <script>
+  (function(){
+    try {
+      var s = JSON.parse(localStorage.getItem('estimator-settings') || '{}');
+      if (!s.primaryColor && !s.accentColor) return;
+      function luma(hex) {
+        var n = parseInt((hex||'000000').replace('#',''),16);
+        return 0.299*((n>>16)&255)+0.587*((n>>8)&255)+0.114*(n&255);
+      }
+      function mix(hex,t) {
+        var n=parseInt((hex||'000000').replace('#',''),16);
+        var r=Math.round(((n>>16)&255)+(255-((n>>16)&255))*t);
+        var g=Math.round(((n>>8)&255)+(255-((n>>8)&255))*t);
+        var b=Math.round((n&255)+(255-(n&255))*t);
+        return '#'+[r,g,b].map(function(x){return x.toString(16).padStart(2,'0')}).join('');
+      }
+      var root=document.documentElement;
+      if (s.primaryColor) {
+        root.style.setProperty('--theme-primary',s.primaryColor);
+        root.style.setProperty('--theme-primary-light',mix(s.primaryColor,0.2));
+        root.style.setProperty('--theme-primary-vlight',mix(s.primaryColor,0.09));
+        root.style.setProperty('--theme-primary-text',luma(s.primaryColor)>150?'#1a1a1a':'#ffffff');
+      }
+      if (s.accentColor) {
+        root.style.setProperty('--theme-accent',s.accentColor);
+        root.style.setProperty('--theme-accent-text',luma(s.accentColor)>150?'#1a1a1a':'#ffffff');
+      }
+    } catch(_) {}
+  })();
+  </script>
+  <script defer src="vendor/pdf-lib.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase.js"></script>
-  <script src="js/app.js?v=6"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
+  <script src="js/app.js?v=7"></script>
+  <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="estimatorApp()" x-init="init()" x-cloak>
 
@@ -81,10 +112,17 @@
           <div class="col-12">
             <label class="form-label fw-semibold">Company Logo <span class="text-muted fw-normal">(optional)</span></label>
             <input type="file" class="form-control" accept="image/*" @change="loadLogo($event)" />
-            <div class="form-text">Appears top-right on your PDFs.</div>
-            <div x-show="settings.logo" class="mt-2">
-              <img :src="settings.logo" alt="Logo preview"
-                style="max-height:50px; max-width:140px; border:1px solid #ddd; border-radius:4px;" />
+            <div class="form-text">Appears top-left on your PDFs.</div>
+            <div class="mt-2">
+              <template x-if="!settings.logo">
+                <div class="d-inline-flex px-3 py-2 text-muted small fst-italic"
+                  style="border:1px dashed #ccc; border-radius:4px;">No Logo</div>
+              </template>
+              <template x-if="settings.logo">
+                <img :src="settings.logo" alt="Logo preview"
+                  style="max-height:50px; max-width:140px; border:1px solid #ddd; border-radius:4px;"
+                  @error="settings.logo = null" />
+              </template>
             </div>
           </div>
         </div>
@@ -218,8 +256,11 @@
   <!-- Navbar -->
   <nav class="navbar px-3 py-2 mb-4"
     :class="isLightColor(settings.primaryColor || '#3D5A99') ? 'navbar-light' : 'navbar-dark'">
-    <span class="navbar-brand fw-bold fs-5">
-      <i class="bi bi-flower1 me-1"></i> Quick Project Estimator
+    <span class="navbar-brand fw-bold fs-5 d-flex align-items-center gap-2">
+      <img src="img/q-logo.png" alt="" id="q-nav-logo" style="height:24px; width:auto;"
+           onerror="this.style.display='none';document.getElementById('q-nav-nologotxt').style.display=''" />
+      <span id="q-nav-nologotxt" style="display:none;font-size:.6rem;opacity:.8;border:1px solid rgba(255,255,255,.5);border-radius:3px;padding:1px 6px;">No Logo</span>
+      Quick Project Estimator
     </span>
     <div class="d-flex gap-2">
       <button class="btn btn-outline-light btn-sm nav-btn"
@@ -293,6 +334,7 @@
               @drop.prevent="scopeDrop($event, i)"
               @dragend="scopeDragEnd()"
               :class="{
+                'scope-drag-pending': _touchPendingIdx === i,
                 'scope-dragging': dragIndex === i,
                 'scope-drop-above': dropIndex === i && dragIndex > i,
                 'scope-drop-below': dropIndex === i && dragIndex < i
@@ -380,6 +422,7 @@
           x-show="estimate.costs.materials.length > 0">
           <thead class="table-light">
             <tr>
+              <th style="width:28px"></th>
               <th>Item</th>
               <th style="width:60px">Qty</th>
               <th style="width:80px">Price</th>
@@ -389,7 +432,28 @@
           </thead>
           <tbody>
             <template x-for="(m, i) in estimate.costs.materials" :key="i">
-              <tr>
+              <tr :data-material-index="i"
+                draggable="true"
+                @dragstart="matDragStart($event, i)"
+                @dragover.prevent="matDragOver($event, i)"
+                @dragleave="matDragLeave($event)"
+                @drop.prevent="matDrop($event, i)"
+                @dragend="matDragEnd()"
+                :class="{
+                  'scope-drag-pending': _touchPendingIdx === i && _touchDragTarget === 'materials',
+                  'scope-dragging': matDragIndex === i,
+                  'scope-drop-above': matDropIndex === i && matDragIndex > i,
+                  'scope-drop-below': matDropIndex === i && matDragIndex < i
+                }">
+                <td class="p-0 text-center align-middle">
+                  <div class="drag-handle text-muted d-flex align-items-center justify-content-center"
+                    style="height:100%; min-height:34px; cursor:grab; touch-action:none;"
+                    @touchstart.prevent="matTouchDragStart($event, i)"
+                    @touchmove.prevent="touchDragMove($event)"
+                    @touchend.prevent="touchDragEnd()">
+                    <i class="bi bi-grip-vertical"></i>
+                  </div>
+                </td>
                 <td><input type="text" class="form-control form-control-sm" x-model="m.name" placeholder="Sod" spellcheck="true" autocorrect="on" /></td>
                 <td><input type="number" class="form-control form-control-sm" x-model.number="m.qty" min="0" step="1" /></td>
                 <td><input type="number" class="form-control form-control-sm" x-model.number="m.unitPrice" min="0" step="0.01" /></td>
@@ -786,13 +850,22 @@
               <label class="form-label">Company Logo</label>
               <input type="file" class="form-control" accept="image/*"
                 id="logo-input" @change="loadLogo($event)" />
-              <div class="form-text">Appears top-right on the PDF.</div>
-              <div x-show="settings.logo" class="mt-2 d-flex align-items-center gap-2">
-                <img :src="settings.logo" alt="Logo preview"
-                  style="max-height:60px; max-width:160px; border:1px solid #ddd; border-radius:4px;" />
-                <button class="btn btn-outline-danger btn-sm" @click="removeLogo()">
-                  <i class="bi bi-trash"></i>
-                </button>
+              <div class="form-text">Appears top-left on the PDF.</div>
+              <div class="mt-2">
+                <template x-if="!settings.logo">
+                  <div class="d-inline-flex px-3 py-2 text-muted small fst-italic"
+                    style="border:1px dashed #ccc; border-radius:4px;">No Logo</div>
+                </template>
+                <template x-if="settings.logo">
+                  <div class="d-flex align-items-center gap-2">
+                    <img :src="settings.logo" alt="Logo preview"
+                      style="max-height:60px; max-width:160px; border:1px solid #ddd; border-radius:4px;"
+                      @error="settings.logo = null" />
+                    <button class="btn btn-outline-danger btn-sm" @click="removeLogo()">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
+                </template>
               </div>
             </div>
 
@@ -812,8 +885,7 @@
               class="btn btn-outline-secondary btn-sm">
               🥤 Buy Me a Soda
             </a>
-            <a href="https://mail.google.com/mail/?view=cm&fs=1&to=sodamoneyhelp@gmail.com&su=Quick%20Project%20Estimator%20Feedback"
-              target="_blank" rel="noopener"
+            <a href="mailto:sodamoneyhelp@gmail.com?subject=Quick%20Project%20Estimator%20Feedback"
               class="btn btn-outline-secondary btn-sm">
               <i class="bi bi-envelope me-1"></i>Request Feature / Report Issue
             </a>
@@ -850,7 +922,7 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="vendor/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 </body>

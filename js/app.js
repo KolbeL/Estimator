@@ -79,6 +79,36 @@ Any additional work beyond the services listed above may incur extra charges.`
         this.onboardingStep = 1;
       }
 
+      // Restore in-progress draft estimate
+      const draft = localStorage.getItem('estimator-draft');
+      if (draft) {
+        try {
+          const data = JSON.parse(draft);
+          const { costs, scopeOfWork, photos, ...scalars } = data;
+          Object.assign(this.estimate, scalars);
+          if (costs) {
+            this.estimate.costs.materials  = costs.materials  || [];
+            this.estimate.costs.machinery  = costs.machinery  || [];
+            this.estimate.costs.laborDays  = costs.laborDays  ?? 1.0;
+            this.estimate.costs.laborDailyRate = costs.laborDailyRate ?? 400;
+            this.estimate.costs.misc       = costs.misc       || [];
+          }
+          this.estimate.scopeOfWork = (scopeOfWork || []).map(i => ({ _id: i._id || Date.now() + Math.random(), ...i }));
+          this.estimate.photos = photos || [];
+        } catch(_) {}
+      }
+
+      // Auto-save draft: on any input change (text fields) and on array length changes
+      document.addEventListener('input', () => {
+        clearTimeout(this._draftTimer);
+        this._draftTimer = setTimeout(() => this._saveDraft(), 800);
+      });
+      ['estimate.scopeOfWork.length', 'estimate.costs.materials.length',
+       'estimate.costs.machinery.length', 'estimate.costs.misc.length',
+       'estimate.photos.length'].forEach(path => {
+        this.$watch(path, () => this._saveDraft());
+      });
+
       this.firebaseReady = !!window._fbReady;
       if (this.firebaseReady) {
         fbOnAuthChange(async (user) => {
@@ -147,7 +177,7 @@ Any additional work beyond the services listed above may incur extra charges.`
       r.style.setProperty('--theme-accent-text',    aText);
     },
 
-    // --- Scope drag-and-drop (native HTML5) ---
+    // --- Drag-and-drop state (scope + materials) ---
     dragIndex: null,
     dropIndex: null,
     _touchPendingIdx: null,
@@ -155,6 +185,10 @@ Any additional work beyond the services listed above may incur extra charges.`
     _dragClone: null,
     _dragTouchOffsetX: 0,
     _dragTouchOffsetY: 0,
+    _touchDragTarget: 'scope',
+    matDragIndex: null,
+    matDropIndex: null,
+    _draftTimer: null,
 
     scopeDragStart(evt, i) {
       this.dragIndex = i;
@@ -184,6 +218,7 @@ Any additional work beyond the services listed above may incur extra charges.`
       this.dropIndex = null;
     },
     touchDragStart(evt, i) {
+      this._touchDragTarget = 'scope';
       clearTimeout(this._touchDragTimer);
       this._touchPendingIdx = i;
       const touch = evt.touches[0];
@@ -218,9 +253,12 @@ Any additional work beyond the services listed above may incur extra charges.`
         this._dragClone.style.left = (touch.clientX - this._dragTouchOffsetX) + 'px';
       }
       const el = document.elementFromPoint(touch.clientX, touch.clientY);
-      const row = el?.closest('[data-scope-index]');
+      const attr = this._touchDragTarget === 'materials' ? '[data-material-index]' : '[data-scope-index]';
+      const row = el?.closest(attr);
       if (row) {
-        this.dropIndex = +row.dataset.scopeIndex;
+        this.dropIndex = this._touchDragTarget === 'materials'
+          ? +row.dataset.materialIndex
+          : +row.dataset.scopeIndex;
       }
     },
     touchDragEnd() {
@@ -232,12 +270,77 @@ Any additional work beyond the services listed above may incur extra charges.`
         this._dragClone = null;
       }
       if (this.dragIndex !== null && this.dropIndex !== null && this.dragIndex !== this.dropIndex) {
-        const arr = this.estimate.scopeOfWork;
+        const arr = this._touchDragTarget === 'materials'
+          ? this.estimate.costs.materials
+          : this.estimate.scopeOfWork;
         const moved = arr.splice(this.dragIndex, 1)[0];
         arr.splice(this.dropIndex, 0, moved);
+        this._saveDraft();
       }
       this.dragIndex = null;
       this.dropIndex = null;
+    },
+    matTouchDragStart(evt, i) {
+      this._touchDragTarget = 'materials';
+      clearTimeout(this._touchDragTimer);
+      this._touchPendingIdx = i;
+      const touch = evt.touches[0];
+      const startX = touch.clientX;
+      const startY = touch.clientY;
+      this._touchDragTimer = setTimeout(() => {
+        this.dragIndex = i;
+        this._touchPendingIdx = null;
+        this._touchDragTimer = null;
+        const row = document.querySelector(`[data-material-index="${i}"]`);
+        if (row) {
+          const rect = row.getBoundingClientRect();
+          const clone = row.cloneNode(true);
+          clone.setAttribute('x-ignore', '');
+          const item = this.estimate.costs.materials[i];
+          const cloneInputs = clone.querySelectorAll('input');
+          if (cloneInputs[0]) cloneInputs[0].value = item.name || '';
+          if (cloneInputs[1]) cloneInputs[1].value = item.qty ?? '';
+          if (cloneInputs[2]) cloneInputs[2].value = item.unitPrice ?? '';
+          // Wrap <tr> in a table so it renders correctly outside the DOM
+          const table = document.createElement('table');
+          table.className = 'table table-sm table-bordered mb-0';
+          const tbody = document.createElement('tbody');
+          tbody.appendChild(clone);
+          table.appendChild(tbody);
+          table.style.cssText = 'position:fixed;top:' + rect.top + 'px;left:' + rect.left + 'px;width:' + rect.width + 'px;pointer-events:none;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.25);opacity:0.92;border-radius:4px;transform:scale(1.02);';
+          document.body.appendChild(table);
+          this._dragClone = table;
+          this._dragTouchOffsetX = startX - rect.left;
+          this._dragTouchOffsetY = startY - rect.top;
+        }
+      }, 660);
+    },
+    matDragStart(evt, i) {
+      this.matDragIndex = i;
+      evt.dataTransfer.effectAllowed = 'move';
+      evt.dataTransfer.setData('text/plain', i);
+    },
+    matDragOver(evt, i) {
+      if (this.matDragIndex === null || this.matDragIndex === i) return;
+      this.matDropIndex = i;
+    },
+    matDragLeave(evt) {
+      if (!evt.currentTarget.contains(evt.relatedTarget)) {
+        this.matDropIndex = null;
+      }
+    },
+    matDrop(evt, i) {
+      if (this.matDragIndex === null || this.matDragIndex === i) return;
+      const arr = this.estimate.costs.materials;
+      const moved = arr.splice(this.matDragIndex, 1)[0];
+      arr.splice(i, 0, moved);
+      this.matDragIndex = null;
+      this.matDropIndex = null;
+      this._saveDraft();
+    },
+    matDragEnd() {
+      this.matDragIndex = null;
+      this.matDropIndex = null;
     },
 
     // --- Array helpers ---
@@ -326,6 +429,18 @@ Any additional work beyond the services listed above may incur extra charges.`
       this.settings.logo = null;
       document.getElementById('logo-input').value = '';
     },
+    _saveDraft() {
+      try {
+        localStorage.setItem('estimator-draft', JSON.stringify(this.estimate));
+      } catch(_) {
+        // Quota exceeded (large photos); retry without photos
+        try {
+          const { photos, ...rest } = this.estimate;
+          localStorage.setItem('estimator-draft', JSON.stringify({ ...rest, photos: [] }));
+        } catch(_) {}
+      }
+    },
+
     saveSettings() {
       localStorage.setItem('estimator-settings', JSON.stringify(this.settings));
       this.settingsSaved = true;
@@ -563,6 +678,7 @@ Any additional work beyond the services listed above may incur extra charges.`
 
     _resetEstimate() {
       this.loadedCloudId = null;
+      localStorage.removeItem('estimator-draft');
       Object.assign(this.estimate, {
         customerName: '', customerAddress: '',
         estimateDate: new Date().toISOString().split('T')[0],
@@ -631,6 +747,7 @@ Any additional work beyond the services listed above may incur extra charges.`
       const hasCompanyInfo = s.companyName || s.phone || s.email || s.website || s.licenseNumbers;
 
       // Logo — left side
+      let logoH = 0;
       if (s.logo) {
         try {
           const fmt = s.logo.startsWith('data:image/png') ? 'PNG' : 'JPEG';
@@ -641,6 +758,7 @@ Any additional work beyond the services listed above may incur extra charges.`
           const lw = img.naturalWidth * ratio;
           const lh = img.naturalHeight * ratio;
           doc.addImage(s.logo, fmt, M, y, lw, lh);
+          logoH = lh;
         } catch (_) {}
       }
 
@@ -664,7 +782,7 @@ Any additional work beyond the services listed above may incur extra charges.`
       }
 
       if (hasCompanyInfo || s.logo) {
-        y += hasCompanyInfo ? 44 : 0;
+        y += hasCompanyInfo ? Math.max(44, logoH) : logoH;
         doc.setDrawColor(...GREEN);
         doc.setLineWidth(0.5);
         doc.line(M, y, M + CW, y);
