@@ -150,6 +150,11 @@ Any additional work beyond the services listed above may incur extra charges.`
     // --- Scope drag-and-drop (native HTML5) ---
     dragIndex: null,
     dropIndex: null,
+    _touchPendingIdx: null,
+    _touchDragTimer: null,
+    _dragClone: null,
+    _dragTouchOffsetX: 0,
+    _dragTouchOffsetY: 0,
 
     scopeDragStart(evt, i) {
       this.dragIndex = i;
@@ -179,18 +184,53 @@ Any additional work beyond the services listed above may incur extra charges.`
       this.dropIndex = null;
     },
     touchDragStart(evt, i) {
-      this.dragIndex = i;
+      clearTimeout(this._touchDragTimer);
+      this._touchPendingIdx = i;
+      const touch = evt.touches[0];
+      const startX = touch.clientX;
+      const startY = touch.clientY;
+      this._touchDragTimer = setTimeout(() => {
+        this.dragIndex = i;
+        this._touchPendingIdx = null;
+        this._touchDragTimer = null;
+        const row = document.querySelector(`[data-scope-index="${i}"]`);
+        if (row) {
+          const rect = row.getBoundingClientRect();
+          const clone = row.cloneNode(true);
+          clone.setAttribute('x-ignore', '');
+          const item = this.estimate.scopeOfWork[i];
+          const cloneInputs = clone.querySelectorAll('input,textarea');
+          if (cloneInputs[0]) cloneInputs[0].value = item.title || '';
+          if (cloneInputs[1]) cloneInputs[1].value = item.description || '';
+          clone.style.cssText = 'position:fixed;top:' + rect.top + 'px;left:' + rect.left + 'px;width:' + rect.width + 'px;pointer-events:none;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.25);opacity:0.92;border-radius:8px;transform:scale(1.02);';
+          document.body.appendChild(clone);
+          this._dragClone = clone;
+          this._dragTouchOffsetX = startX - rect.left;
+          this._dragTouchOffsetY = startY - rect.top;
+        }
+      }, 660);
     },
     touchDragMove(evt) {
+      if (this.dragIndex === null) return;
       const touch = evt.touches[0];
+      if (this._dragClone) {
+        this._dragClone.style.top  = (touch.clientY - this._dragTouchOffsetY) + 'px';
+        this._dragClone.style.left = (touch.clientX - this._dragTouchOffsetX) + 'px';
+      }
       const el = document.elementFromPoint(touch.clientX, touch.clientY);
       const row = el?.closest('[data-scope-index]');
       if (row) {
-        const j = +row.dataset.scopeIndex;
-        if (j !== this.dragIndex) this.dropIndex = j;
+        this.dropIndex = +row.dataset.scopeIndex;
       }
     },
     touchDragEnd() {
+      clearTimeout(this._touchDragTimer);
+      this._touchDragTimer = null;
+      this._touchPendingIdx = null;
+      if (this._dragClone) {
+        this._dragClone.remove();
+        this._dragClone = null;
+      }
       if (this.dragIndex !== null && this.dropIndex !== null && this.dragIndex !== this.dropIndex) {
         const arr = this.estimate.scopeOfWork;
         const moved = arr.splice(this.dragIndex, 1)[0];
