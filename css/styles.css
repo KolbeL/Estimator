@@ -96,7 +96,17 @@ body {
     box-shadow: 0 0 0 3px rgba(var(--theme-primary-rgb), 0.3), 0 4px 14px rgba(0,0,0,0.18) !important;
   }
 
-  /* Table cell inputs use position:fixed via JS (tableInputFocus/Blur) so they
-     expand from their column's left edge to the card's right edge. The general
-     focus styles above still apply for height/font/shadow. */
+  /* Table inputs expand rightward to the card edge, starting from each column's
+     natural left position. card-body is the containing block; left:auto keeps the
+     column's flow origin; right:4px anchors to the card's right edge — pure CSS,
+     no JS timing. */
+  .card-body { position: relative; }
+  .table tbody td { height: 40px; }
+  .table tbody td input.form-control:focus,
+  .table tbody td input.form-control-sm:focus {
+    position: absolute !important;
+    right: 4px;
+    min-width: 120px;
+    z-index: 100;
+  }
 }
