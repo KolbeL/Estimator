@@ -8,7 +8,7 @@
   <style>[x-cloak]{display:none!important}</style>
   <link rel="stylesheet" href="vendor/bootstrap.min.css" />
   <link rel="stylesheet" href="vendor/bootstrap-icons.min.css" />
-  <link rel="stylesheet" href="css/styles.css?v=5" />
+  <link rel="stylesheet" href="css/styles.css?v=7" />
   <script>
   (function(){
     try {
@@ -45,7 +45,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase.js"></script>
-  <script src="js/app.js?v=7"></script>
+  <script src="js/app.js?v=8"></script>
   <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="estimatorApp()" x-init="init()" x-cloak>
@@ -95,7 +95,8 @@
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold">Phone</label>
-            <input type="tel" class="form-control" x-model="settings.phone" placeholder="(555) 555-5555" />
+            <input type="tel" class="form-control" x-model="settings.phone" placeholder="(555) 555-5555"
+              @input="formatPhoneInput($event)" />
           </div>
           <div class="col-md-6">
             <label class="form-label fw-semibold">Email</label>
@@ -455,8 +456,8 @@
                   </div>
                 </td>
                 <td><input type="text" class="form-control form-control-sm" x-model="m.name" placeholder="Sod" spellcheck="true" autocorrect="on" /></td>
-                <td><input type="number" class="form-control form-control-sm" x-model.number="m.qty" min="0" step="1" /></td>
-                <td><input type="number" class="form-control form-control-sm" x-model.number="m.unitPrice" min="0" step="0.01" /></td>
+                <td><input type="number" class="form-control form-control-sm" x-model.number="m.qty" min="0" step="1" @focus="$event.target.select()" /></td>
+                <td><input type="number" class="form-control form-control-sm" x-model.number="m.unitPrice" min="0" step="0.01" @focus="$event.target.select()" /></td>
                 <td class="fw-semibold small" x-text="fmt((+m.qty||0)*(+m.unitPrice||0))"></td>
                 <td>
                   <button class="btn btn-outline-danger btn-sm p-1" @click="estimate.costs.materials.splice(i,1)">
@@ -517,8 +518,8 @@
             <template x-for="(m, i) in estimate.costs.machinery" :key="i">
               <tr>
                 <td><input type="text" class="form-control form-control-sm" x-model="m.name" placeholder="Excavator" spellcheck="true" autocorrect="on" /></td>
-                <td><input type="number" class="form-control form-control-sm" x-model.number="m.duration" min="0" step="0.5" /></td>
-                <td><input type="number" class="form-control form-control-sm" x-model.number="m.rate" min="0" step="0.01" /></td>
+                <td><input type="number" class="form-control form-control-sm" x-model.number="m.duration" min="0" step="0.5" @focus="$event.target.select()" /></td>
+                <td><input type="number" class="form-control form-control-sm" x-model.number="m.rate" min="0" step="0.01" @focus="$event.target.select()" /></td>
                 <td class="fw-semibold small" x-text="fmt((+m.duration||0)*(+m.rate||0))"></td>
                 <td>
                   <button class="btn btn-outline-danger btn-sm p-1" @click="estimate.costs.machinery.splice(i,1)">
@@ -575,7 +576,7 @@
             <div class="input-group">
               <span class="input-group-text">$</span>
               <input type="number" class="form-control" style="max-width:130px"
-                x-model.number="estimate.costs.laborDailyRate" min="0" step="0.01" />
+                x-model.number="estimate.costs.laborDailyRate" min="0" step="0.01" @focus="$event.target.select()" />
             </div>
           </div>
           <div class="col-auto">
@@ -616,7 +617,7 @@
               <tr>
                 <td><input type="text" class="form-control form-control-sm" x-model="m.description"
                   placeholder="Permit fees, dump charges…" spellcheck="true" autocorrect="on" /></td>
-                <td><input type="number" class="form-control form-control-sm" x-model.number="m.amount" min="0" step="0.01" /></td>
+                <td><input type="number" class="form-control form-control-sm" x-model.number="m.amount" min="0" step="0.01" @focus="$event.target.select()" /></td>
                 <td>
                   <button class="btn btn-outline-danger btn-sm p-1" @click="estimate.costs.misc.splice(i,1)">
                     <i class="bi bi-trash"></i>
@@ -645,7 +646,8 @@
         <div class="row g-3">
           <div class="col-md-3">
             <label class="form-label fw-semibold">Start Date</label>
-            <input type="date" class="form-control" x-model="estimate.startDate" />
+            <input type="date" class="form-control" x-model="estimate.startDate"
+              @change="if (!estimate.completionDate) estimate.completionDate = estimate.startDate" />
           </div>
           <div class="col-md-3">
             <label class="form-label fw-semibold">Completion Date</label>
@@ -789,7 +791,7 @@
             <div class="mb-3">
               <label class="form-label">Phone</label>
               <input type="tel" class="form-control" x-model="settings.phone"
-                placeholder="(555) 123-4567" />
+                placeholder="(555) 123-4567" @input="formatPhoneInput($event)" />
             </div>
             <div class="mb-3">
               <label class="form-label">Email</label>

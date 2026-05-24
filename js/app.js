@@ -135,6 +135,27 @@ Any additional work beyond the services listed above may incur extra charges.`
       this.onboardingStep = 0;
     },
 
+    isMobilePlatform() {
+      return !!window.Capacitor?.isNativePlatform();
+    },
+
+    formatPhoneInput(evt) {
+      if (!this.isMobilePlatform()) return;
+      const digits = evt.target.value.replace(/\D/g, '').slice(0, 10);
+      let formatted = '';
+      if (digits.length === 0) {
+        formatted = '';
+      } else if (digits.length <= 3) {
+        formatted = '(' + digits;
+      } else if (digits.length <= 6) {
+        formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+      } else {
+        formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
+      }
+      evt.target.value = formatted;
+      this.settings.phone = formatted;
+    },
+
     // --- Color utilities ---
     hexToRgb(hex) {
       const h = (hex || '#000000').replace('#', '');
@@ -819,6 +840,11 @@ Any additional work beyond the services listed above may incur extra charges.`
           { content: e.customerAddress, styles: { textColor: GRAY, fontSize: 9 } },
           { content: e.startDate ? 'Start: ' + fmtDate(e.startDate) : '', styles: { halign: 'right', textColor: GRAY, fontSize: 9 } }
         ]);
+      } else if (e.startDate) {
+        clientBody.push([
+          '',
+          { content: 'Start: ' + fmtDate(e.startDate), styles: { halign: 'right', textColor: GRAY, fontSize: 9 } }
+        ]);
       }
       if (e.completionDate) {
         clientBody.push([
@@ -1048,8 +1074,9 @@ Any additional work beyond the services listed above may incur extra charges.`
       }
 
       // ---- Save ----
-      const safeName = e.customerName.replace(/[^a-z0-9]/gi, '_');
-      const fileName = `${safeName}_${e.estimateDate || 'draft'}.pdf`;
+      const safeName    = e.customerName.replace(/[^a-z0-9]/gi, '_');
+      const safeProject = e.projectName ? '_' + e.projectName.replace(/[^a-z0-9]/gi, '_') : '';
+      const fileName = `${safeName}${safeProject}_${e.estimateDate || 'draft'}.pdf`;
 
       if (window.Capacitor?.isNativePlatform()) {
         const base64 = doc.output('datauristring').split(',')[1];
