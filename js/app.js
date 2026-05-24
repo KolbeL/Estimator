@@ -139,6 +139,28 @@ Any additional work beyond the services listed above may incur extra charges.`
       return !!window.Capacitor?.isNativePlatform();
     },
 
+    tableInputFocus(evt) {
+      const el = evt.target;
+      if (el.type === 'number') el.select();
+      if (!this.isMobilePlatform()) return;
+      const inputRect = el.getBoundingClientRect();
+      const card = el.closest('.card');
+      const rightEdge = card ? card.getBoundingClientRect().right - 4 : window.innerWidth - 16;
+      Object.assign(el.style, {
+        position: 'fixed',
+        top: inputRect.top + 'px',
+        left: inputRect.left + 'px',
+        width: Math.max(80, rightEdge - inputRect.left) + 'px',
+        zIndex: '1000',
+      });
+    },
+
+    tableInputBlur(evt) {
+      if (!this.isMobilePlatform()) return;
+      const el = evt.target;
+      ['position', 'top', 'left', 'width', 'zIndex'].forEach(p => el.style[p] = '');
+    },
+
     formatPhoneInput(evt) {
       if (!this.isMobilePlatform()) return;
       const digits = evt.target.value.replace(/\D/g, '').slice(0, 10);

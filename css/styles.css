@@ -96,19 +96,7 @@ body {
     box-shadow: 0 0 0 3px rgba(var(--theme-primary-rgb), 0.3), 0 4px 14px rgba(0,0,0,0.18) !important;
   }
 
-  /* Table cell inputs: pop out of narrow columns when focused so there's room
-     to read. position:absolute breaks out of the column without shifting layout.
-     height on td prevents the row from collapsing when the input leaves flow. */
-  .table tbody td {
-    position: relative;
-    height: 40px;
-  }
-  .table tbody td input.form-control:focus,
-  .table tbody td input.form-control-sm:focus {
-    position: absolute !important;
-    top: 0;
-    left: 0;
-    width: min(280px, 82vw) !important;
-    z-index: 100;
-  }
+  /* Table cell inputs use position:fixed via JS (tableInputFocus/Blur) so they
+     expand from their column's left edge to the card's right edge. The general
+     focus styles above still apply for height/font/shadow. */
 }
