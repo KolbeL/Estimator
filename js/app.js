@@ -143,20 +143,57 @@ Any additional work beyond the services listed above may incur extra charges.`
       const el = evt.target;
       if (el.type === 'number') el.select();
       if (!this.isMobilePlatform()) return;
-      const inputRect = el.getBoundingClientRect();
-      const card = el.closest('.card');
-      const rightEdge = card ? card.getBoundingClientRect().right - 4 : window.innerWidth - 16;
-      Object.assign(el.style, {
-        position: 'fixed',
-        top: inputRect.top + 'px',
-        left: inputRect.left + 'px',
-        width: Math.max(80, rightEdge - inputRect.left) + 'px',
-        zIndex: '1000',
-      });
+
+      // Clean up any listener left from a previous focus
+      clearTimeout(this._tableExpandTimer);
+      if (this._vpResizeHandler && window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', this._vpResizeHandler);
+        this._vpResizeHandler = null;
+      }
+      this._expandedInput = el;
+
+      const applyExpansion = () => {
+        if (this._expandedInput !== el) return;
+        const inputRect = el.getBoundingClientRect();
+        const card = el.closest('.card');
+        const rightEdge = card ? card.getBoundingClientRect().right - 4 : window.innerWidth - 16;
+        Object.assign(el.style, {
+          position: 'fixed',
+          top: inputRect.top + 'px',
+          left: inputRect.left + 'px',
+          width: Math.max(80, rightEdge - inputRect.left) + 'px',
+          zIndex: '1000',
+        });
+      };
+
+      if (window.visualViewport) {
+        // The keyboard fires multiple visualViewport resize events during its open
+        // animation. Debounce: wait 150ms after the last resize before measuring,
+        // so we get the final settled position (post-scroll, post-keyboard).
+        const onResize = () => {
+          clearTimeout(this._tableExpandTimer);
+          this._tableExpandTimer = setTimeout(() => {
+            window.visualViewport.removeEventListener('resize', onResize);
+            this._vpResizeHandler = null;
+            applyExpansion();
+          }, 150);
+        };
+        this._vpResizeHandler = onResize;
+        window.visualViewport.addEventListener('resize', onResize);
+      } else {
+        // Fallback for environments without visualViewport API
+        this._tableExpandTimer = setTimeout(applyExpansion, 400);
+      }
     },
 
     tableInputBlur(evt) {
       if (!this.isMobilePlatform()) return;
+      clearTimeout(this._tableExpandTimer);
+      if (this._vpResizeHandler && window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', this._vpResizeHandler);
+        this._vpResizeHandler = null;
+      }
+      this._expandedInput = null;
       const el = evt.target;
       ['position', 'top', 'left', 'width', 'zIndex'].forEach(p => el.style[p] = '');
     },
