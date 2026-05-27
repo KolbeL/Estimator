@@ -442,7 +442,7 @@ Any additional work beyond the services listed above may incur extra charges.`
       return this.materialsTotal() + this.machineryTotal() + this.taxAmount() + this.laborTotal() + this.miscTotal();
     },
 
-    fmt(n) { return '$' + (+(n) || 0).toFixed(2); },
+    fmt(n) { return '$' + (+(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
 
     // --- Settings ---
     loadLogo(event) {
@@ -757,7 +757,7 @@ Any additional work beyond the services listed above may incur extra charges.`
       const AMBER_TEXT  = this.isLightColor(s.accentColor  || '#C99C2C') ? [26,26,26] : [255,255,255];
       const GRAY     = [110, 110, 110];
 
-      const money = (n) => '$' + (+(n) || 0).toFixed(2);
+      const money = (n) => '$' + (+(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
       const fmtDate = (d) => d
         ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
         : '';
