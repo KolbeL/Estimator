@@ -88,8 +88,6 @@ document.addEventListener('alpine:init', () => {
     onboardingStep: 0,
     prefabPickerOpen: false,
     prefabPickerTrade: '',
-    prefabSavedId: null,
-
     authUser: null,
     authEmail: '',
     authPassword: '',
@@ -490,12 +488,34 @@ Any additional work beyond the services listed above may incur extra charges.`,
     addMachinery()  { this.estimate.costs.machinery.push({ name: '', duration: 1, rate: 0 }); },
     addMisc()       { this.estimate.costs.misc.push({ description: '', amount: 0 }); },
 
+    async removeScopeItem(i) {
+      if (!await this._confirm('This will completely delete this scope item from Scope of Work. Are you sure?')) return;
+      this.estimate.scopeOfWork.splice(i, 1);
+    },
+    async removePhoto(i) {
+      if (!await this._confirm('This will completely delete this photo from Project Photos. Are you sure?')) return;
+      this.estimate.photos.splice(i, 1);
+    },
+    async removeMaterial(i) {
+      if (!await this._confirm('This will completely delete this material from Materials. Are you sure?')) return;
+      this.estimate.costs.materials.splice(i, 1);
+    },
+    async removeMachinery(i) {
+      if (!await this._confirm('This will completely delete this equipment from Machinery. Are you sure?')) return;
+      this.estimate.costs.machinery.splice(i, 1);
+    },
+    async removeMisc(i) {
+      if (!await this._confirm('This will completely delete this item from Miscellaneous. Are you sure?')) return;
+      this.estimate.costs.misc.splice(i, 1);
+    },
+
     addPrefabItem() {
       if (!this.settings.selectedTrade) return;
       this.settings.prefabScopeItems.push({ _id: Date.now() + Math.random(), tradeId: this.settings.selectedTrade, title: '', description: '' });
       this.saveSettings();
     },
-    removePrefabItem(id) {
+    async removePrefabItem(id) {
+      if (!await this._confirm('This will completely delete this item from Prefab Scope Items. Are you sure?')) return;
       const idx = this.settings.prefabScopeItems.findIndex(i => i._id === id);
       if (idx !== -1) this.settings.prefabScopeItems.splice(idx, 1);
       this.saveSettings();
@@ -545,8 +565,20 @@ Any additional work beyond the services listed above may incur extra charges.`,
       return map[this.settings.selectedTrade] || { title: 'e.g. Phase 1: Preparation', desc: 'e.g. Technical details of the task…', material: 'e.g. Material name' };
     },
 
-    saveAsPrefab(item) {
-      if (!item.title || !this.settings.selectedTrade || this.prefabSavedId === item._id) return;
+    isItemSavedAsPrefab(item) {
+      if (!item.title || !this.settings.selectedTrade) return false;
+      return this.settings.prefabScopeItems.some(p =>
+        p.tradeId === this.settings.selectedTrade &&
+        p.title === item.title &&
+        p.description === item.description
+      );
+    },
+
+    async saveAsPrefab(item) {
+      if (!item.title || !this.settings.selectedTrade || this.isItemSavedAsPrefab(item)) return;
+      const trade = this.trades.find(t => t.id === this.settings.selectedTrade);
+      const tradeName = trade?.label || 'this trade';
+      if (!await this._confirm(`Do you want to add this to your list of prefabs for ${tradeName}?`)) return;
       this.settings.prefabScopeItems.push({
         _id: Date.now() + Math.random(),
         tradeId: this.settings.selectedTrade,
@@ -554,8 +586,6 @@ Any additional work beyond the services listed above may incur extra charges.`,
         description: item.description
       });
       this.saveSettings();
-      this.prefabSavedId = item._id;
-      setTimeout(() => { this.prefabSavedId = null; }, 2000);
     },
 
     // --- Photos ---

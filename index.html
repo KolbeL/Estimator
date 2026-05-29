@@ -88,17 +88,16 @@
       </div>
       <div class="card-body px-4 py-4" style="overflow-y:auto;">
         <p class="text-muted small mb-3">Pick your primary trade and we'll set up prefab scope items to get you started fast. You can change this anytime in <strong>Trade Settings</strong>.</p>
-        <div class="row g-2 mb-3">
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); grid-auto-rows:80px; gap:0.5rem;" class="mb-3">
           <template x-for="trade in trades" :key="trade.id">
-            <div class="col-4">
-              <button
-                class="btn w-100 py-2 d-flex flex-column align-items-center gap-1"
-                :class="settings.selectedTrade === trade.id ? 'btn-success' : 'btn-outline-secondary'"
-                @click="selectTrade(trade.id)">
-                <i class="bi fs-5" :class="trade.icon"></i>
-                <span style="font-size:.72rem; line-height:1.2;" class="fw-semibold" x-text="trade.label"></span>
-              </button>
-            </div>
+            <button
+              class="btn py-2 d-flex flex-column align-items-center justify-content-center gap-1"
+              style="height:100%"
+              :class="settings.selectedTrade === trade.id ? 'btn-success' : 'btn-outline-secondary'"
+              @click="selectTrade(trade.id)">
+              <i class="bi fs-5" :class="trade.icon"></i>
+              <span style="font-size:.72rem; line-height:1.2;" class="fw-semibold" x-text="trade.label"></span>
+            </button>
           </template>
         </div>
         <div class="d-flex justify-content-between align-items-center pt-2 border-top">
@@ -448,13 +447,13 @@
               </div>
               <div class="d-flex align-items-start pt-1 gap-1">
                 <button class="btn btn-sm px-2"
-                  :class="prefabSavedId === item._id ? 'btn-success' : 'btn-outline-secondary'"
-                  :title="!settings.selectedTrade ? 'Select a trade first' : !item.title ? 'Add a title first' : 'Save as prefab'"
-                  :disabled="!item.title || !settings.selectedTrade || prefabSavedId === item._id"
+                  :class="isItemSavedAsPrefab(item) ? 'btn-success' : 'btn-outline-secondary'"
+                  :title="!settings.selectedTrade ? 'Select a trade first' : !item.title ? 'Add a title first' : isItemSavedAsPrefab(item) ? 'Already saved as prefab' : 'Save as prefab'"
+                  :disabled="!item.title || !settings.selectedTrade || isItemSavedAsPrefab(item)"
                   @click="saveAsPrefab(item)">
-                  <i class="bi" :class="prefabSavedId === item._id ? 'bi-check2' : 'bi-lightning'"></i><template x-if="prefabSavedId !== item._id"><sup style="font-size:.6rem; font-weight:700; line-height:1; margin-left:1px;">+</sup></template>
+                  <i class="bi" :class="isItemSavedAsPrefab(item) ? 'bi-check2' : 'bi-lightning'"></i><template x-if="!isItemSavedAsPrefab(item)"><sup style="font-size:.6rem; font-weight:700; line-height:1; margin-left:1px;">+</sup></template>
                 </button>
-                <button class="btn btn-outline-danger btn-sm" @click="estimate.scopeOfWork.splice(i, 1)"
+                <button class="btn btn-outline-danger btn-sm" @click="removeScopeItem(i)"
                   title="Remove item">
                   <i class="bi bi-trash"></i>
                 </button>
@@ -490,7 +489,7 @@
                          placeholder="Describe this photo…"
                          spellcheck="true" autocorrect="on" />
                   <button class="btn btn-outline-danger btn-sm flex-shrink-0 px-2"
-                          @click="estimate.photos.splice(i, 1)" title="Remove photo">
+                          @click="removePhoto(i)" title="Remove photo">
                     <i class="bi bi-trash"></i>
                   </button>
                 </div>
@@ -554,7 +553,7 @@
                 <td><input type="number" class="form-control form-control-sm" x-model.number="m.unitPrice" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
                 <td class="fw-semibold small" x-text="fmt((+m.qty||0)*(+m.unitPrice||0))"></td>
                 <td>
-                  <button class="btn btn-outline-danger btn-sm p-1" @click="estimate.costs.materials.splice(i,1)">
+                  <button class="btn btn-outline-danger btn-sm p-1" @click="removeMaterial(i)">
                     <i class="bi bi-trash"></i>
                   </button>
                 </td>
@@ -616,7 +615,7 @@
                 <td><input type="number" class="form-control form-control-sm" x-model.number="m.rate" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
                 <td class="fw-semibold small" x-text="fmt((+m.duration||0)*(+m.rate||0))"></td>
                 <td>
-                  <button class="btn btn-outline-danger btn-sm p-1" @click="estimate.costs.machinery.splice(i,1)">
+                  <button class="btn btn-outline-danger btn-sm p-1" @click="removeMachinery(i)">
                     <i class="bi bi-trash"></i>
                   </button>
                 </td>
@@ -713,7 +712,7 @@
                   placeholder="Permit fees, dump charges…" spellcheck="true" autocorrect="on" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
                 <td><input type="number" class="form-control form-control-sm" x-model.number="m.amount" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
                 <td>
-                  <button class="btn btn-outline-danger btn-sm p-1" @click="estimate.costs.misc.splice(i,1)">
+                  <button class="btn btn-outline-danger btn-sm p-1" @click="removeMisc(i)">
                     <i class="bi bi-trash"></i>
                   </button>
                 </td>
@@ -930,7 +929,7 @@
               </div>
               <div class="col">
                 <label class="form-label">PDF Title Color
-                  <span class="text-muted fw-normal">(Project Estimate text)</span>
+                  <span class="text-muted fw-normal">(Project Estimate)</span>
                 </label>
                 <input type="color" class="form-control form-control-color"
                   x-model="settings.titleColor" />
@@ -1011,17 +1010,16 @@
       </div>
       <div class="card-body">
         <p class="text-muted small mb-3">Select your primary trade. This helps personalize the app for your type of work.</p>
-        <div class="row g-2">
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); grid-auto-rows:88px; gap:0.5rem;">
           <template x-for="trade in trades" :key="trade.id">
-            <div class="col-6 col-md-4 col-lg-3">
-              <button
-                class="btn w-100 py-3 d-flex flex-column align-items-center gap-1"
-                :class="settings.selectedTrade === trade.id ? 'btn-success' : 'btn-outline-secondary'"
-                @click="selectTrade(trade.id)">
-                <i class="bi fs-4" :class="trade.icon"></i>
-                <span class="small fw-semibold" x-text="trade.label"></span>
-              </button>
-            </div>
+            <button
+              class="btn py-3 d-flex flex-column align-items-center justify-content-center gap-1"
+              style="height:100%"
+              :class="settings.selectedTrade === trade.id ? 'btn-success' : 'btn-outline-secondary'"
+              @click="selectTrade(trade.id)">
+              <i class="bi fs-4" :class="trade.icon"></i>
+              <span class="small fw-semibold" x-text="trade.label"></span>
+            </button>
           </template>
         </div>
       </div>
@@ -1090,8 +1088,8 @@
       <div class="card-body py-4 px-4">
         <p class="mb-4" x-text="confirmMessage"></p>
         <div class="d-flex gap-2 justify-content-end">
-          <button class="btn btn-outline-secondary" @click="confirmNo()">Cancel</button>
-          <button class="btn btn-primary" @click="confirmYes()">OK</button>
+          <button class="btn btn-outline-secondary" @click="confirmNo()">No</button>
+          <button class="btn btn-primary" @click="confirmYes()">Yes</button>
         </div>
       </div>
     </div>
