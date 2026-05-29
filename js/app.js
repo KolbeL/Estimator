@@ -170,6 +170,12 @@ Any additional work beyond the services listed above may incur extra charges.`,
       if (saved) {
         try { Object.assign(this.settings, JSON.parse(saved)); } catch (_) {}
       }
+      // Backfill initializedTrades for saves that predate the field
+      this.settings.prefabScopeItems.forEach(item => {
+        if (item.tradeId && !this.settings.initializedTrades.includes(item.tradeId)) {
+          this.settings.initializedTrades.push(item.tradeId);
+        }
+      });
       // Migrate any saved green primary or yellow/orange accent to new blue/gold defaults
       const isGreenish   = (h) => { const c = parseInt((h||'').replace('#','').slice(2,4),16); const r = parseInt((h||'').replace('#','').slice(0,2),16); return c > r + 30; };
       const isYellowish  = (h) => { const r = parseInt((h||'').replace('#','').slice(0,2),16); const b = parseInt((h||'').replace('#','').slice(4,6),16); return r > 180 && b < 80; };
