@@ -1084,8 +1084,8 @@
   <div x-show="confirmMessage"
     class="position-fixed top-0 start-0 w-100 h-100"
     style="z-index:2000; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.55);"
-    @keydown.window.escape.prevent="confirmMessage && confirmNo()"
-    @keydown.window.enter.prevent="confirmMessage && confirmYes()">
+    @keydown.window.escape="if (confirmMessage) { $event.preventDefault(); confirmNo(); }"
+    @keydown.window.enter="if (confirmMessage) { $event.preventDefault(); confirmYes(); }">
     <div class="card shadow-lg mx-3" style="width:100%; max-width:400px;">
       <div class="card-body py-4 px-4">
         <p class="mb-4" x-text="confirmMessage"></p>
