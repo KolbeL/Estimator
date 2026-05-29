@@ -343,11 +343,11 @@
       <button class="btn btn-outline-light btn-sm nav-btn"
         :class="currentView === 'estimator' ? 'active' : ''"
         @click="currentView === 'estimator' ? newEstimate() : (currentView = 'estimator')">
-        <i class="bi bi-file-earmark-text me-1"></i>New Estimate
+        <i class="bi bi-file-earmark-text me-1"></i>New
       </button>
       <input type="file" x-ref="openInput" accept=".pdf" class="d-none" @change="openEstimatePDF($event)" />
       <button class="btn btn-outline-light btn-sm nav-btn" @click="openEstimateModal()">
-        <i class="bi bi-folder2-open me-1"></i>Open Estimate
+        <i class="bi bi-folder2-open me-1"></i>Open
       </button>
       <button class="btn btn-outline-light btn-sm nav-btn"
         :class="currentView === 'tradeSettings' ? 'active' : ''"
@@ -452,7 +452,7 @@
                   :title="!settings.selectedTrade ? 'Select a trade first' : !item.title ? 'Add a title first' : 'Save as prefab'"
                   :disabled="!item.title || !settings.selectedTrade || prefabSavedId === item._id"
                   @click="saveAsPrefab(item)">
-                  <i class="bi" :class="prefabSavedId === item._id ? 'bi-check2' : 'bi-lightning'"></i>
+                  <i class="bi" :class="prefabSavedId === item._id ? 'bi-check2' : 'bi-lightning'"></i><template x-if="prefabSavedId !== item._id"><sup style="font-size:.6rem; font-weight:700; line-height:1; margin-left:1px;">+</sup></template>
                 </button>
                 <button class="btn btn-outline-danger btn-sm" @click="estimate.scopeOfWork.splice(i, 1)"
                   title="Remove item">
