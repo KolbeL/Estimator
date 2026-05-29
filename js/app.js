@@ -142,7 +142,8 @@ document.addEventListener('alpine:init', () => {
 
 Any additional work beyond the services listed above may incur extra charges.`,
       selectedTrade: '',
-      prefabScopeItems: []
+      prefabScopeItems: [],
+      initializedTrades: []
     },
 
     trades: [
@@ -237,7 +238,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
     },
 
     finishOnboarding() {
-      localStorage.setItem('estimator-settings', JSON.stringify(this.settings));
+      this.saveSettings();
       localStorage.setItem('onboarding-complete', '1');
       this.onboardingStep = 0;
     },
@@ -486,10 +487,12 @@ Any additional work beyond the services listed above may incur extra charges.`,
     addPrefabItem() {
       if (!this.settings.selectedTrade) return;
       this.settings.prefabScopeItems.push({ _id: Date.now() + Math.random(), tradeId: this.settings.selectedTrade, title: '', description: '' });
+      this.saveSettings();
     },
     removePrefabItem(id) {
       const idx = this.settings.prefabScopeItems.findIndex(i => i._id === id);
       if (idx !== -1) this.settings.prefabScopeItems.splice(idx, 1);
+      this.saveSettings();
     },
     insertPrefab(item) {
       this.estimate.scopeOfWork.push({ _id: Date.now() + Math.random(), title: item.title, description: item.description });
@@ -497,15 +500,17 @@ Any additional work beyond the services listed above may incur extra charges.`,
     },
     selectTrade(id) {
       this.settings.selectedTrade = id;
-      if (!this.settings.prefabScopeItems.some(i => i.tradeId === id)) {
+      if (!this.settings.initializedTrades.includes(id)) {
+        this.settings.initializedTrades.push(id);
         (QPE_DEFAULT_PREFABS[id] || []).forEach(item => {
           this.settings.prefabScopeItems.push({ _id: Date.now() + Math.random(), tradeId: id, title: item.title, description: item.description });
         });
       }
     },
     openPrefabPicker() {
-      this.prefabPickerTrade = this.settings.selectedTrade ||
-        (this.settings.prefabScopeItems.find(i => i.tradeId)?.tradeId) || '';
+      const available = this.tradesWithPrefabs();
+      const preferred = available.find(t => t.id === this.settings.selectedTrade) || available[0];
+      this.prefabPickerTrade = preferred?.id || '';
       this.prefabPickerOpen = true;
     },
     tradesWithPrefabs() {
@@ -535,7 +540,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
     },
 
     saveAsPrefab(item) {
-      if (!item.title || !this.settings.selectedTrade) return;
+      if (!item.title || !this.settings.selectedTrade || this.prefabSavedId === item._id) return;
       this.settings.prefabScopeItems.push({
         _id: Date.now() + Math.random(),
         tradeId: this.settings.selectedTrade,
