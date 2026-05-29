@@ -1,8 +1,94 @@
+const QPE_DEFAULT_PREFABS = {
+  landscaping: [
+    { title: 'Site Preparation',         description: 'Clear and grade the designated area, remove debris, and prepare soil for new installation.' },
+    { title: 'Plant or Sod Install',     description: 'Supply and install specified plants or sod in the designated area per the approved plan.' },
+    { title: 'Cleanup & Haul Away',      description: 'Remove all job-site debris and haul away waste materials upon project completion.' },
+  ],
+  painting: [
+    { title: 'Surface Preparation',      description: 'Scrape, sand, patch holes, and apply primer to all designated surfaces prior to painting.' },
+    { title: 'Paint Application',        description: 'Apply two finish coats of specified paint to all designated surfaces and trim.' },
+    { title: 'Touch-Up & Cleanup',       description: 'Inspect all surfaces, complete touch-ups, and remove all protective coverings and materials.' },
+  ],
+  plumbing: [
+    { title: 'Rough-In Plumbing',        description: 'Install all supply and drain lines per the approved plan prior to wall finishes.' },
+    { title: 'Fixture Installation',     description: 'Supply and install all specified fixtures with connections, shut-offs, and trim.' },
+    { title: 'Pressure Test & Sign-Off', description: 'Pressure test all new lines and coordinate with the inspector for required approval.' },
+  ],
+  roofing: [
+    { title: 'Tear-Off & Disposal',      description: 'Strip existing roofing and underlayment and dispose of all debris off-site.' },
+    { title: 'Install Roofing System',   description: 'Install new underlayment, specified roofing material, and all required flashing and trim.' },
+    { title: 'Cleanup & Inspection',     description: 'Clear gutters and surrounding area of debris and inspect the completed roof for defects.' },
+  ],
+  hvac: [
+    { title: 'Equipment Removal',        description: 'Disconnect and safely remove existing HVAC equipment and prepare the site for new installation.' },
+    { title: 'System Installation',      description: 'Install new equipment including ductwork, refrigerant lines, and electrical connections.' },
+    { title: 'Start-Up & Commissioning', description: 'Test system operation, verify airflow, and confirm proper function of all controls and settings.' },
+  ],
+  flooring: [
+    { title: 'Subfloor Preparation',     description: 'Inspect and repair the subfloor, remove old flooring, and level the surface as required.' },
+    { title: 'Flooring Installation',    description: 'Install specified flooring material in the designated area including transitions and trim.' },
+    { title: 'Final Cleanup',            description: 'Remove all protective coverings, clean installed flooring, and inspect for defects or damage.' },
+  ],
+  fencing: [
+    { title: 'Layout & Post Setting',    description: 'Mark fence line, dig post holes to required depth, and set posts in concrete.' },
+    { title: 'Panel & Hardware Install', description: 'Install fence panels, gates, and all associated hardware per the approved specifications.' },
+    { title: 'Final Inspection',         description: 'Verify fence is level and plumb, remove all job-site debris, and clean up the area.' },
+  ],
+  drywall: [
+    { title: 'Hang Drywall',             description: 'Measure, cut, and hang drywall on all designated walls and ceilings per the approved plan.' },
+    { title: 'Tape, Mud & Sand',         description: 'Apply tape and joint compound in multiple coats, then sand smooth for a paint-ready finish.' },
+    { title: 'Prime & Final Prep',       description: 'Apply primer coat to all new drywall surfaces and perform final sanding as needed.' },
+  ],
+  pool: [
+    { title: 'Excavation & Shell',       description: 'Excavate to specified dimensions and install the pool or spa shell per engineered plans.' },
+    { title: 'Plumbing & Equipment',     description: 'Install all pool plumbing, pump, filter, heater, and required electrical connections.' },
+    { title: 'Finish, Fill & Balance',   description: 'Apply interior finish, fill with water, and balance chemistry for safe use.' },
+  ],
+  solar: [
+    { title: 'Mounting Installation',    description: 'Install racking and mounting hardware at the approved roof or ground location.' },
+    { title: 'Panel & Inverter Install', description: 'Mount panels, run wiring, and install inverter and all required disconnects per the electrical plan.' },
+    { title: 'Commissioning & Tie-In',  description: 'Test system output, submit utility interconnect paperwork, and verify full operation.' },
+  ],
+  electrical: [
+    { title: 'Rough-In Wiring',          description: 'Install conduit, pull wire, and set boxes per the approved electrical plan before wall finishes.' },
+    { title: 'Device & Panel Work',      description: 'Install outlets, switches, fixtures, and complete all panel connections and circuit labeling.' },
+    { title: 'Testing & Inspection',     description: 'Test all circuits, verify GFCI and AFCI protection, and coordinate inspector sign-off.' },
+  ],
+  concrete: [
+    { title: 'Formwork & Base Prep',     description: 'Set forms, compact base material, and install required reinforcement prior to the pour.' },
+    { title: 'Pour & Finish',            description: 'Pour concrete or lay masonry to the specified thickness and finish to the required grade.' },
+    { title: 'Cure & Seal',              description: 'Protect during the curing period and apply specified sealer for long-term protection.' },
+  ],
+  general: [
+    { title: 'Project Mobilization',     description: 'Obtain permits, establish site access, and coordinate subcontractor scheduling and deliveries.' },
+    { title: 'Construction Management',  description: 'Manage daily site activities, subcontractor quality, required inspections, and schedule compliance.' },
+    { title: 'Final Walkthrough',        description: 'Conduct client walkthrough, address all punch list items, and obtain final sign-off.' },
+  ],
+  doors: [
+    { title: 'Remove & Dispose',         description: 'Remove existing door or window unit and dispose of all materials and hardware off-site.' },
+    { title: 'Install New Unit',         description: 'Supply and install specified door or window unit including frame, trim, and all hardware.' },
+    { title: 'Seal & Finish',            description: 'Apply weatherstripping, caulk all perimeter gaps, and complete interior and exterior trim finish.' },
+  ],
+  interiordesign: [
+    { title: 'Design Consultation',      description: 'Meet with client to assess the space, define style direction, and establish project scope and budget.' },
+    { title: 'Space Planning & Sourcing', description: 'Develop floor plan and furniture layout, source all specified furnishings, fixtures, and finishes.' },
+    { title: 'Installation & Styling',   description: 'Coordinate delivery and installation of all furnishings and complete final styling of the space.' },
+  ],
+  handyman: [
+    { title: 'Assessment & Material List', description: 'Evaluate requested repairs, identify all required materials, and confirm the final scope of work.' },
+    { title: 'Repairs & Installation',   description: 'Complete all specified repairs, replacements, and minor installations per the agreed scope.' },
+    { title: 'Cleanup & Walkthrough',    description: 'Clean up all work areas and conduct a walkthrough to confirm all items are completed.' },
+  ],
+};
+
 document.addEventListener('alpine:init', () => {
   Alpine.data('estimatorApp', () => ({
     currentView: 'estimator',
     settingsSaved: false,
     onboardingStep: 0,
+    prefabPickerOpen: false,
+    prefabPickerTrade: '',
+    prefabSavedId: null,
 
     authUser: null,
     authEmail: '',
@@ -54,8 +140,29 @@ document.addEventListener('alpine:init', () => {
       logo: null,
       termsAndConditions: `50% deposit due at project start, balance due upon completion.
 
-Any additional work beyond the services listed above may incur extra charges.`
+Any additional work beyond the services listed above may incur extra charges.`,
+      selectedTrade: '',
+      prefabScopeItems: []
     },
+
+    trades: [
+      { id: 'landscaping', label: 'Landscaping',          icon: 'bi-tree' },
+      { id: 'painting',    label: 'Painting',              icon: 'bi-brush' },
+      { id: 'plumbing',    label: 'Plumbing',              icon: 'bi-droplet-half' },
+      { id: 'roofing',     label: 'Roofing',               icon: 'bi-house' },
+      { id: 'hvac',        label: 'HVAC',                  icon: 'bi-wind' },
+      { id: 'flooring',    label: 'Flooring',              icon: 'bi-grid' },
+      { id: 'fencing',     label: 'Fencing',               icon: 'bi-slash-lg' },
+      { id: 'drywall',     label: 'Drywall',               icon: 'bi-layers' },
+      { id: 'pool',        label: 'Pool / Spa',            icon: 'bi-water' },
+      { id: 'solar',       label: 'Solar',                 icon: 'bi-sun' },
+      { id: 'electrical',  label: 'Electrical',            icon: 'bi-lightning' },
+      { id: 'concrete',       label: 'Concrete / Masonry',    icon: 'bi-bricks' },
+      { id: 'general',        label: 'General Contracting',   icon: 'bi-tools' },
+      { id: 'doors',          label: 'Door / Window',         icon: 'bi-window' },
+      { id: 'interiordesign', label: 'Interior Design',       icon: 'bi-palette' },
+      { id: 'handyman',       label: 'Handyman',              icon: 'bi-wrench' },
+    ],
 
     init() {
       const saved = localStorage.getItem('estimator-settings');
@@ -375,6 +482,70 @@ Any additional work beyond the services listed above may incur extra charges.`
     addMaterial()   { this.estimate.costs.materials.push({ name: '', qty: 0, unitPrice: 0 }); },
     addMachinery()  { this.estimate.costs.machinery.push({ name: '', duration: 1, rate: 0 }); },
     addMisc()       { this.estimate.costs.misc.push({ description: '', amount: 0 }); },
+
+    addPrefabItem() {
+      if (!this.settings.selectedTrade) return;
+      this.settings.prefabScopeItems.push({ _id: Date.now() + Math.random(), tradeId: this.settings.selectedTrade, title: '', description: '' });
+    },
+    removePrefabItem(id) {
+      const idx = this.settings.prefabScopeItems.findIndex(i => i._id === id);
+      if (idx !== -1) this.settings.prefabScopeItems.splice(idx, 1);
+    },
+    insertPrefab(item) {
+      this.estimate.scopeOfWork.push({ _id: Date.now() + Math.random(), title: item.title, description: item.description });
+      this.prefabPickerOpen = false;
+    },
+    selectTrade(id) {
+      this.settings.selectedTrade = id;
+      if (!this.settings.prefabScopeItems.some(i => i.tradeId === id)) {
+        (QPE_DEFAULT_PREFABS[id] || []).forEach(item => {
+          this.settings.prefabScopeItems.push({ _id: Date.now() + Math.random(), tradeId: id, title: item.title, description: item.description });
+        });
+      }
+    },
+    openPrefabPicker() {
+      this.prefabPickerTrade = this.settings.selectedTrade ||
+        (this.settings.prefabScopeItems.find(i => i.tradeId)?.tradeId) || '';
+      this.prefabPickerOpen = true;
+    },
+    tradesWithPrefabs() {
+      return this.trades.filter(t => this.settings.prefabScopeItems.some(i => i.tradeId === t.id && (i.title || i.description)));
+    },
+
+    tradePlaceholders() {
+      const map = {
+        landscaping:    { title: 'e.g. Install Sod',             desc: 'e.g. Supply and install sod in the designated area',          material: 'e.g. Sod (pallets)' },
+        painting:       { title: 'e.g. Paint Exterior Walls',    desc: 'e.g. Apply two finish coats to all exterior surfaces',        material: 'e.g. Exterior Paint (gal)' },
+        plumbing:       { title: 'e.g. Replace Water Heater',    desc: 'e.g. Remove old unit and install new 40-gal water heater',    material: 'e.g. Water Heater' },
+        roofing:        { title: 'e.g. Replace Shingles',        desc: 'e.g. Remove old shingles and install new architectural shingles', material: 'e.g. Architectural Shingles (sq)' },
+        hvac:           { title: 'e.g. Install New AC Unit',     desc: 'e.g. Remove old unit and install new 3-ton split system',     material: 'e.g. Split System AC Unit' },
+        flooring:       { title: 'e.g. Install Hardwood Floors', desc: 'e.g. Install 3/4" hardwood flooring in the living room',     material: 'e.g. Hardwood Flooring (sq ft)' },
+        fencing:        { title: 'e.g. Install Privacy Fence',   desc: 'e.g. Install 6ft wood privacy fence along the property line', material: 'e.g. Cedar Fence Panels' },
+        drywall:        { title: 'e.g. Hang and Finish Drywall', desc: 'e.g. Hang, tape, mud, and sand all walls in the bedroom',    material: 'e.g. Drywall Sheets (4x8)' },
+        pool:           { title: 'e.g. Install Pool Equipment',  desc: 'e.g. Install new pump, filter, and heater for the existing pool', material: 'e.g. Pool Pump' },
+        solar:          { title: 'e.g. Install Solar Panels',    desc: 'e.g. Install 10-panel rooftop array with microinverters',    material: 'e.g. Solar Panels (400W)' },
+        electrical:     { title: 'e.g. Panel Upgrade',           desc: 'e.g. Upgrade main panel from 100A to 200A service',          material: 'e.g. 200A Main Panel' },
+        concrete:       { title: 'e.g. Pour Concrete Driveway',  desc: 'e.g. Pour 4" driveway with control joints and broom finish', material: 'e.g. Concrete (yards)' },
+        general:        { title: 'e.g. Kitchen Remodel',         desc: 'e.g. Complete kitchen renovation including demo and finish work', material: 'e.g. Lumber (2x4x8)' },
+        doors:          { title: 'e.g. Install Entry Door',      desc: 'e.g. Remove old door and install new fiberglass entry door', material: 'e.g. Fiberglass Entry Door' },
+        interiordesign: { title: 'e.g. Living Room Redesign',    desc: 'e.g. Source and install new sofa, lighting, and accent décor', material: 'e.g. Sectional Sofa' },
+        handyman:       { title: 'e.g. Repair Drywall Damage',   desc: 'e.g. Patch and paint damaged drywall in the hallway',        material: 'e.g. Joint Compound' },
+      };
+      return map[this.settings.selectedTrade] || { title: 'e.g. Phase 1: Preparation', desc: 'e.g. Technical details of the task…', material: 'e.g. Material name' };
+    },
+
+    saveAsPrefab(item) {
+      if (!item.title || !this.settings.selectedTrade) return;
+      this.settings.prefabScopeItems.push({
+        _id: Date.now() + Math.random(),
+        tradeId: this.settings.selectedTrade,
+        title: item.title,
+        description: item.description
+      });
+      this.saveSettings();
+      this.prefabSavedId = item._id;
+      setTimeout(() => { this.prefabSavedId = null; }, 2000);
+    },
 
     // --- Photos ---
     async addPhoto() {

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Quick Project Estimator</string>
-    <string name="title_activity_main">Quick Project Estimator</string>
+    <string name="app_name">Quick Estimator</string>
+    <string name="title_activity_main">Quick Estimator</string>
     <string name="package_name">com.sodamoney.quickprojectestimator</string>
     <string name="custom_url_scheme">com.sodamoney.quickprojectestimator</string>
 </resources>

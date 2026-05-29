@@ -60,6 +60,11 @@ body {
 .card > *:first-child { border-radius: 8px 8px 0 0; }
 .card > *:only-child  { border-radius: 8px; }
 
+.form-control::placeholder,
+.form-control-sm::placeholder {
+  opacity: 0.38;
+}
+
 .form-control:focus, .form-select:focus {
   border-color: var(--theme-primary) !important;
   box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.2) !important;

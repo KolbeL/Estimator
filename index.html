@@ -8,7 +8,7 @@
   <style>[x-cloak]{display:none!important}</style>
   <link rel="stylesheet" href="vendor/bootstrap.min.css" />
   <link rel="stylesheet" href="vendor/bootstrap-icons.min.css" />
-  <link rel="stylesheet" href="css/styles.css?v=9" />
+  <link rel="stylesheet" href="css/styles.css?v=10" />
   <script>
   (function(){
     try {
@@ -45,7 +45,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase.js"></script>
-  <script src="js/app.js?v=12"></script>
+  <script src="js/app.js?v=13"></script>
   <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="estimatorApp()" x-init="init()" x-cloak>
@@ -65,8 +65,8 @@
       </div>
       <div class="card-body px-4 py-4 text-center">
         <p class="fs-5 mb-3" style="line-height:1.6;">
-          Welcome to Quick Project Estimator! This is a completely free app that collects no data
-          and has no ads. If you're a small or newly started business and you want your project
+          Welcome to Quick Project Estimator! This is a completely free app that does not collect data
+          and has no ads. If you're a small or new business and you want your project
           estimates to be both easy to create and look great, this is for you!
         </p>
         <p class="text-muted small mb-4">
@@ -78,8 +78,41 @@
       </div>
     </div>
 
-    <!-- Step 2: Your Details -->
+    <!-- Step 2: Trade Selection -->
     <div x-show="onboardingStep === 2"
+      class="card shadow-lg mx-3"
+      style="max-width:540px; width:100%; border-radius:16px; overflow:hidden; max-height:85vh; display:flex; flex-direction:column;"
+      @touchmove.stop>
+      <div class="card-header bg-primary-theme py-3 text-center" style="flex-shrink:0;">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-tools me-2"></i>What's Your Trade?</h5>
+      </div>
+      <div class="card-body px-4 py-4" style="overflow-y:auto;">
+        <p class="text-muted small mb-3">Pick your primary trade and we'll set up prefab scope items to get you started fast. You can change this anytime in <strong>Trade Settings</strong>.</p>
+        <div class="row g-2 mb-3">
+          <template x-for="trade in trades" :key="trade.id">
+            <div class="col-4">
+              <button
+                class="btn w-100 py-2 d-flex flex-column align-items-center gap-1"
+                :class="settings.selectedTrade === trade.id ? 'btn-success' : 'btn-outline-secondary'"
+                @click="selectTrade(trade.id)">
+                <i class="bi fs-5" :class="trade.icon"></i>
+                <span style="font-size:.72rem; line-height:1.2;" class="fw-semibold" x-text="trade.label"></span>
+              </button>
+            </div>
+          </template>
+        </div>
+        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+          <button class="btn btn-outline-secondary btn-sm" @click="onboardingStep = 1">Back</button>
+          <div class="d-flex align-items-center gap-3">
+            <button class="btn btn-link btn-sm text-muted p-0 text-decoration-none" @click="onboardingStep = 3">Skip for now</button>
+            <button class="btn btn-success px-4 fw-semibold" @click="onboardingStep = 3" :disabled="!settings.selectedTrade">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Your Details -->
+    <div x-show="onboardingStep === 3"
       class="card shadow-lg mx-3"
       style="max-width:540px; width:100%; border-radius:16px; overflow:hidden; max-height:85vh; display:flex; flex-direction:column;"
       @touchmove.stop>
@@ -128,16 +161,16 @@
           </div>
         </div>
         <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-          <button class="btn btn-outline-secondary btn-sm" @click="onboardingStep = 1">Back</button>
-          <button class="btn btn-success px-4 fw-semibold" @click="onboardingStep = 3">
+          <button class="btn btn-outline-secondary btn-sm" @click="onboardingStep = 2">Back</button>
+          <button class="btn btn-success px-4 fw-semibold" @click="onboardingStep = 4">
             Next
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Step 3: Tax & Terms -->
-    <div x-show="onboardingStep === 3"
+    <!-- Step 4: Tax & Terms -->
+    <div x-show="onboardingStep === 4"
       class="card shadow-lg mx-3"
       style="max-width:540px; width:100%; border-radius:16px; overflow:hidden; max-height:85vh; display:flex; flex-direction:column;"
       @touchmove.stop>
@@ -160,7 +193,7 @@
           <div class="form-text">Appears at the bottom of every PDF.</div>
         </div>
         <div class="d-flex justify-content-between align-items-center pt-2 border-top">
-          <button class="btn btn-outline-secondary btn-sm" @click="onboardingStep = 2">Back</button>
+          <button class="btn btn-outline-secondary btn-sm" @click="onboardingStep = 3">Back</button>
           <button class="btn btn-success px-4 fw-semibold" @click="finishOnboarding()">
             <i class="bi bi-check2 me-1"></i>Done
           </button>
@@ -254,6 +287,49 @@
     </div>
   </div>
 
+  <!-- Prefab Picker Modal -->
+  <div x-show="prefabPickerOpen"
+    class="position-fixed top-0 start-0 w-100 h-100"
+    style="background:rgba(0,0,0,0.5); z-index:1050; display:flex; align-items:center; justify-content:center;"
+    @click.self="prefabPickerOpen = false">
+    <div class="card shadow-lg mx-3 d-flex flex-column"
+      style="width:100%; max-width:520px; max-height:80vh;">
+      <div class="card-header bg-primary-theme d-flex justify-content-between align-items-center py-2">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-lightning me-1"></i>Insert Prefab Scope Item</h6>
+        <button @click="prefabPickerOpen = false" class="btn p-0 lh-1" style="color:inherit; opacity:.8; font-size:1.2rem;">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="px-3 pt-3 pb-1 border-bottom d-flex align-items-center gap-2 flex-shrink-0">
+        <label class="form-label mb-0 small fw-semibold flex-shrink-0">Trade:</label>
+        <select class="form-select form-select-sm" x-model="prefabPickerTrade">
+          <template x-for="t in tradesWithPrefabs()" :key="t.id">
+            <option :value="t.id" x-text="t.label"></option>
+          </template>
+        </select>
+      </div>
+      <div class="overflow-auto p-3">
+        <div x-show="tradesWithPrefabs().length === 0" class="text-muted small text-center py-4">
+          No prefab items yet — add some in <strong>Trade Settings</strong>.
+        </div>
+        <div x-show="prefabPickerTrade && !settings.prefabScopeItems.some(i => i.tradeId === prefabPickerTrade && (i.title || i.description))" class="text-muted small text-center py-4">
+          No items for this trade yet.
+        </div>
+        <template x-for="item in settings.prefabScopeItems.filter(i => i.tradeId === prefabPickerTrade && (i.title || i.description))" :key="item._id">
+          <div class="d-flex align-items-center gap-2 p-2 border rounded mb-2">
+            <div class="flex-grow-1 overflow-hidden">
+              <div class="fw-semibold small" x-text="item.title || '(no title)'"></div>
+              <div class="text-muted" style="font-size:.8rem;" x-text="item.description" x-show="item.description"></div>
+            </div>
+            <button class="btn btn-success btn-sm flex-shrink-0" @click="insertPrefab(item)">
+              <i class="bi bi-plus-circle me-1"></i>Insert
+            </button>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+
   <!-- Navbar -->
   <nav class="navbar px-3 py-2 mb-4"
     :class="isLightColor(settings.primaryColor || '#3D5A99') ? 'navbar-light' : 'navbar-dark'">
@@ -272,6 +348,11 @@
       <input type="file" x-ref="openInput" accept=".pdf" class="d-none" @change="openEstimatePDF($event)" />
       <button class="btn btn-outline-light btn-sm nav-btn" @click="openEstimateModal()">
         <i class="bi bi-folder2-open me-1"></i>Open Estimate
+      </button>
+      <button class="btn btn-outline-light btn-sm nav-btn"
+        :class="currentView === 'tradeSettings' ? 'active' : ''"
+        @click="currentView = 'tradeSettings'">
+        <i class="bi bi-tools me-1"></i>Trade
       </button>
       <button class="btn btn-outline-light btn-sm nav-btn"
         :class="currentView === 'settings' ? 'active' : ''"
@@ -316,9 +397,15 @@
     <div class="card mb-4">
       <div class="card-header bg-primary-theme py-2 d-flex justify-content-between align-items-center">
         <h6 class="mb-0"><i class="bi bi-list-check me-1"></i>Scope of Work</h6>
-        <button class="btn btn-light btn-sm py-0 px-2" @click="addScopeItem()">
-          <i class="bi bi-plus-circle me-1"></i>Add Item
-        </button>
+        <div class="d-flex gap-2">
+          <button class="btn btn-light btn-sm py-0 px-2" @click="openPrefabPicker()"
+            x-show="settings.prefabScopeItems.some(i => i.title || i.description)">
+            <i class="bi bi-lightning me-1"></i>Insert Prefab
+          </button>
+          <button class="btn btn-light btn-sm py-0 px-2" @click="addScopeItem()">
+            <i class="bi bi-plus-circle me-1"></i>Add Item
+          </button>
+        </div>
       </div>
       <div class="card-body">
         <div x-show="estimate.scopeOfWork.length === 0" class="text-muted text-center py-2 small">
@@ -351,15 +438,22 @@
                 <div class="row g-2">
                   <div class="col-12 col-md-4">
                     <input type="text" class="form-control form-control-sm" x-model="item.title"
-                      placeholder="Phase 1: Grading" spellcheck="true" autocorrect="on" />
+                      :placeholder="tradePlaceholders().title" spellcheck="true" autocorrect="on" />
                   </div>
                   <div class="col-12 col-md">
                     <input type="text" class="form-control form-control-sm" x-model="item.description"
-                      placeholder="Technical details of the task…" spellcheck="true" autocorrect="on" />
+                      :placeholder="tradePlaceholders().desc" spellcheck="true" autocorrect="on" />
                   </div>
                 </div>
               </div>
-              <div class="d-flex align-items-start pt-1">
+              <div class="d-flex align-items-start pt-1 gap-1">
+                <button class="btn btn-sm px-2"
+                  :class="prefabSavedId === item._id ? 'btn-success' : 'btn-outline-secondary'"
+                  :title="!settings.selectedTrade ? 'Select a trade first' : !item.title ? 'Add a title first' : 'Save as prefab'"
+                  :disabled="!item.title || !settings.selectedTrade"
+                  @click="saveAsPrefab(item)">
+                  <i class="bi" :class="prefabSavedId === item._id ? 'bi-check2' : 'bi-lightning'"></i>
+                </button>
                 <button class="btn btn-outline-danger btn-sm" @click="estimate.scopeOfWork.splice(i, 1)"
                   title="Remove item">
                   <i class="bi bi-trash"></i>
@@ -455,7 +549,7 @@
                     <i class="bi bi-grip-vertical"></i>
                   </div>
                 </td>
-                <td><input type="text" class="form-control form-control-sm" x-model="m.name" placeholder="Sod" spellcheck="true" autocorrect="on" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
+                <td><input type="text" class="form-control form-control-sm" x-model="m.name" :placeholder="tradePlaceholders().material" spellcheck="true" autocorrect="on" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
                 <td><input type="number" class="form-control form-control-sm" x-model.number="m.qty" min="0" step="1" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
                 <td><input type="number" class="form-control form-control-sm" x-model.number="m.unitPrice" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
                 <td class="fw-semibold small" x-text="fmt((+m.qty||0)*(+m.unitPrice||0))"></td>
@@ -904,8 +998,87 @@
       </div>
     </div>
   </div>
-  <div class="text-center text-muted small py-2" x-show="currentView === 'settings'" style="opacity:0.5;">&copy; 2026 SodaMoney. All rights reserved.</div>
+  <div class="text-center text-muted small py-2" x-show="currentView === 'settings' || currentView === 'tradeSettings'" style="opacity:0.5;">&copy; 2026 SodaMoney. All rights reserved.</div>
   <!-- end settings view -->
+
+  <!-- ===================== TRADE SETTINGS VIEW ===================== -->
+  <div x-show="currentView === 'tradeSettings'" class="container py-2" style="max-width:860px;">
+
+    <!-- Trade Selector -->
+    <div class="card mb-3">
+      <div class="card-header bg-primary-theme py-2">
+        <h6 class="mb-0"><i class="bi bi-tools me-1"></i>Your Trade</h6>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">Select your primary trade. This helps personalize the app for your type of work.</p>
+        <div class="row g-2">
+          <template x-for="trade in trades" :key="trade.id">
+            <div class="col-6 col-md-4 col-lg-3">
+              <button
+                class="btn w-100 py-3 d-flex flex-column align-items-center gap-1"
+                :class="settings.selectedTrade === trade.id ? 'btn-success' : 'btn-outline-secondary'"
+                @click="selectTrade(trade.id)">
+                <i class="bi fs-4" :class="trade.icon"></i>
+                <span class="small fw-semibold" x-text="trade.label"></span>
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prefab Scope Items -->
+    <div class="card mb-3">
+      <div class="card-header bg-primary-theme py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-lightning me-1"></i>Prefab Scope Items</h6>
+        <button class="btn btn-light btn-sm py-0 px-2" @click="addPrefabItem()">
+          <i class="bi bi-plus-circle me-1"></i>Add Item
+        </button>
+      </div>
+      <div class="card-body">
+        <p class="text-muted small mb-3">Scope items saved here are tied to the selected trade. In any estimate, tap <strong>Insert Prefab</strong> in the Scope of Work header to pull one in instantly.</p>
+        <div x-show="!settings.selectedTrade" class="text-muted text-center py-3 small">
+          Select a trade above to manage its prefab items.
+        </div>
+        <div x-show="settings.selectedTrade && !settings.prefabScopeItems.some(i => i.tradeId === settings.selectedTrade)" class="text-muted text-center py-2 small">
+          No items yet — click <strong>Add Item</strong> to create your first.
+        </div>
+        <template x-for="item in settings.prefabScopeItems.filter(i => i.tradeId === settings.selectedTrade)" :key="item._id">
+          <div class="d-flex align-items-start gap-2 mb-2">
+            <div class="flex-grow-1">
+              <div class="row g-2">
+                <div class="col-12 col-md-4">
+                  <input type="text" class="form-control form-control-sm" x-model="item.title"
+                    :placeholder="tradePlaceholders().title" spellcheck="true" autocorrect="on" />
+                </div>
+                <div class="col-12 col-md">
+                  <input type="text" class="form-control form-control-sm" x-model="item.description"
+                    :placeholder="tradePlaceholders().desc" spellcheck="true" autocorrect="on" />
+                </div>
+              </div>
+            </div>
+            <div class="pt-1">
+              <button class="btn btn-outline-danger btn-sm" @click="removePrefabItem(item._id)" title="Remove">
+                <i class="bi bi-trash"></i>
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Save -->
+    <div class="d-flex justify-content-end align-items-center gap-3 mb-5">
+      <span x-show="settingsSaved" class="text-success small fw-semibold">
+        <i class="bi bi-check-circle me-1"></i>Saved!
+      </span>
+      <button class="btn btn-success" @click="saveSettings()">
+        <i class="bi bi-floppy me-1"></i>Save Trade Settings
+      </button>
+    </div>
+
+  </div>
+  <!-- end trade settings view -->
 
   <!-- Custom confirm dialog (replaces window.confirm to avoid Electron keyboard focus loss) -->
   <div x-show="confirmMessage"
