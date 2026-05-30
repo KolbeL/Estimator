@@ -76,6 +76,8 @@ body {
 
 [x-cloak] { display: none !important; }
 
+.modal-overlay { display: flex; align-items: center; justify-content: center; }
+
 .drag-handle { cursor: grab; }
 .drag-handle:active { cursor: grabbing; }
 .scope-row { transition: opacity 0.2s; }
