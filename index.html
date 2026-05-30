@@ -286,6 +286,42 @@
     </div>
   </div>
 
+  <!-- Contact / Feedback Modal -->
+  <div x-show="contactModalOpen"
+    class="position-fixed top-0 start-0 w-100 h-100"
+    style="background:rgba(0,0,0,0.5); z-index:1050; display:flex; align-items:center; justify-content:center;"
+    @click.self="contactModalOpen = false">
+    <div class="card shadow-lg mx-3" style="width:100%; max-width:380px;">
+      <div class="card-header bg-primary-theme d-flex justify-content-between align-items-center py-2">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-envelope me-1"></i>Get in Touch</h6>
+        <button @click="contactModalOpen = false" class="btn p-0 lh-1" style="color:inherit; opacity:.8; font-size:1.2rem;">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="card-body d-flex flex-column gap-3 py-4">
+        <a href="mailto:sodamoneyhelp@gmail.com?subject=Quick%20Project%20Estimator%20Help"
+          class="btn btn-outline-secondary d-flex align-items-center gap-2"
+          @click="contactModalOpen = false">
+          <i class="bi bi-life-preserver fs-5"></i>
+          <div class="text-start">
+            <div class="fw-semibold">Get Help</div>
+            <div class="small text-muted">Email us about a bug or question</div>
+          </div>
+        </a>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLScWAC8tbAO1u6PAWeFp2PxMT9JhFLzml4oZ-wDLSe2jqCAb8A/viewform?usp=publish-editor"
+          target="_blank" rel="noopener"
+          class="btn btn-outline-primary d-flex align-items-center gap-2"
+          @click="contactModalOpen = false">
+          <i class="bi bi-lightbulb fs-5"></i>
+          <div class="text-start">
+            <div class="fw-semibold">Share Feedback</div>
+            <div class="small text-muted">Request a feature or share ideas</div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
   <!-- Prefab Picker Modal -->
   <div x-show="prefabPickerOpen"
     class="position-fixed top-0 start-0 w-100 h-100"
@@ -445,13 +481,13 @@
                   </div>
                 </div>
               </div>
-              <div class="d-flex align-items-start pt-1 gap-1">
+              <div class="d-flex flex-column flex-md-row align-items-start gap-1 pt-1">
                 <button class="btn btn-sm px-2"
                   :class="isItemSavedAsPrefab(item) ? 'btn-success' : 'btn-outline-secondary'"
                   :title="!settings.selectedTrade ? 'Select a trade first' : !item.title ? 'Add a title first' : isItemSavedAsPrefab(item) ? 'Already saved as prefab' : 'Save as prefab'"
                   :disabled="!item.title || !settings.selectedTrade || isItemSavedAsPrefab(item)"
                   @click="saveAsPrefab(item)">
-                  <i class="bi" :class="isItemSavedAsPrefab(item) ? 'bi-check2' : 'bi-lightning'"></i><template x-if="!isItemSavedAsPrefab(item)"><sup style="font-size:.6rem; font-weight:700; line-height:1; margin-left:1px;">+</sup></template>
+                  <i class="bi" :class="isItemSavedAsPrefab(item) ? 'bi-check2-square' : 'bi-plus-square'"></i>
                 </button>
                 <button class="btn btn-outline-danger btn-sm" @click="removeScopeItem(i)"
                   title="Remove item">
@@ -976,14 +1012,13 @@
 
         <div class="d-flex align-items-center justify-content-between gap-3 mt-3 pt-3 border-top flex-wrap row-gap-2">
           <div class="d-flex gap-2 flex-wrap">
-            <a href="https://venmo.com/Kolbel" target="_blank" rel="noopener"
+            <a href="https://venmo.com/SodaMoneyPls" target="_blank" rel="noopener"
               class="btn btn-outline-secondary btn-sm">
               🥤 Buy Me a Soda
             </a>
-            <a href="mailto:sodamoneyhelp@gmail.com?subject=Quick%20Project%20Estimator%20Feedback"
-              class="btn btn-outline-secondary btn-sm">
+            <button class="btn btn-outline-secondary btn-sm" @click="contactModalOpen = true">
               <i class="bi bi-envelope me-1"></i>Request Feature / Report Issue
-            </a>
+            </button>
           </div>
           <div class="d-flex align-items-center gap-3">
             <span x-show="settingsSaved" class="text-success small fw-semibold">

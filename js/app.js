@@ -87,6 +87,7 @@ document.addEventListener('alpine:init', () => {
     settingsSaved: false,
     onboardingStep: 0,
     prefabPickerOpen: false,
+    contactModalOpen: false,
     prefabPickerTrade: '',
     authUser: null,
     authEmail: '',
