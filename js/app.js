@@ -136,6 +136,7 @@ document.addEventListener('alpine:init', () => {
       primaryColor: '#3A5890',
       accentColor:  '#C99C2C',
       titleColor:   '#3A5890',
+      darkMode:     'os',
       logo: null,
       termsAndConditions: `50% deposit due at project start, balance due upon completion.
 
@@ -186,8 +187,13 @@ Any additional work beyond the services listed above may incur extra charges.`,
         this.settings.accentColor = '#C99C2C';
       }
       this.applyTheme();
+      this.applyDarkMode();
       this.$watch('settings.primaryColor', () => this.applyTheme());
       this.$watch('settings.accentColor',  () => this.applyTheme());
+      this.$watch('settings.darkMode',     () => this.applyDarkMode());
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if ((this.settings.darkMode || 'os') === 'os') this.applyDarkMode();
+      });
       if (!localStorage.getItem('onboarding-complete')) {
         this.onboardingStep = 1;
       }
@@ -233,6 +239,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
                 Object.assign(this.settings, cloud);
                 localStorage.setItem('estimator-settings', JSON.stringify(this.settings));
                 this.applyTheme();
+                this.applyDarkMode();
                 this.syncStatus = 'loaded';
                 setTimeout(() => { this.syncStatus = ''; }, 3000);
               }
@@ -315,6 +322,14 @@ Any additional work beyond the services listed above may incur extra charges.`,
       r.style.setProperty('--theme-primary-text',   pText);
       r.style.setProperty('--theme-accent',         a);
       r.style.setProperty('--theme-accent-text',    aText);
+    },
+    applyDarkMode() {
+      const mode = this.settings.darkMode || 'os';
+      let dark;
+      if (mode === 'dark')       dark = true;
+      else if (mode === 'light') dark = false;
+      else dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
     },
 
     // --- Drag-and-drop state (scope + materials) ---

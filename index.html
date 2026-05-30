@@ -8,7 +8,7 @@
   <style>[x-cloak]{display:none!important}</style>
   <link rel="stylesheet" href="vendor/bootstrap.min.css" />
   <link rel="stylesheet" href="vendor/bootstrap-icons.min.css" />
-  <link rel="stylesheet" href="css/styles.css?v=10" />
+  <link rel="stylesheet" href="css/styles.css?v=17" />
   <script>
   (function(){
     try {
@@ -36,6 +36,9 @@
         root.style.setProperty('--theme-accent',s.accentColor);
         root.style.setProperty('--theme-accent-text',luma(s.accentColor)>150?'#1a1a1a':'#ffffff');
       }
+      var dm = s.darkMode || 'os';
+      var isDark = dm === 'dark' || (dm === 'os' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      root.setAttribute('data-theme', isDark ? 'dark' : 'light');
     } catch(_) {}
   })();
   </script>
@@ -557,7 +560,7 @@
               <th style="width:60px">Qty</th>
               <th style="width:80px">Price</th>
               <th style="width:65px">Total</th>
-              <th style="width:36px"></th>
+              <th style="width:40px"></th>
             </tr>
           </thead>
           <tbody>
@@ -598,17 +601,17 @@
           </tbody>
           <tfoot class="table-light">
             <tr>
-              <td colspan="3" class="text-end fw-semibold pe-3 py-1">Subtotal:</td>
+              <td colspan="4" class="text-end fw-semibold pe-3 py-1">Subtotal:</td>
               <td class="fw-semibold py-1" x-text="fmt(materialsTotal())"></td>
               <td class="py-1"></td>
             </tr>
             <tr x-show="settings.taxRate > 0" class="text-muted small">
-              <td colspan="3" class="text-end pe-3 py-0">Tax (<span x-text="settings.taxRate"></span>%):</td>
+              <td colspan="4" class="text-end pe-3 py-0">Tax (<span x-text="settings.taxRate"></span>%):</td>
               <td class="py-0" x-text="fmt(materialsTotal() * settings.taxRate / 100)"></td>
               <td class="py-0"></td>
             </tr>
             <tr x-show="settings.taxRate > 0">
-              <td colspan="3" class="text-end fw-bold pe-3 py-1 border-top">Total with Tax:</td>
+              <td colspan="4" class="text-end fw-bold pe-3 py-1 border-top">Total with Tax:</td>
               <td class="fw-bold py-1 border-top" x-text="fmt(materialsTotal() * (1 + settings.taxRate / 100))"></td>
               <td class="py-1 border-top"></td>
             </tr>
@@ -640,7 +643,7 @@
               <th style="width:60px">Days</th>
               <th style="width:80px">Rate</th>
               <th style="width:65px">Total</th>
-              <th style="width:36px"></th>
+              <th style="width:40px"></th>
             </tr>
           </thead>
           <tbody>
@@ -972,6 +975,23 @@
               </div>
             </div>
             <div class="form-text mb-3">Light variants and text contrast are derived automatically.</div>
+
+            <h6 class="text-muted text-uppercase small fw-bold mb-2 mt-3">App Appearance</h6>
+            <div class="btn-group btn-group-sm w-100" role="group" aria-label="Color scheme">
+              <input type="radio" class="btn-check" name="darkMode" id="dm-os"    value="os"    x-model="settings.darkMode" autocomplete="off" />
+              <label class="btn btn-outline-secondary" for="dm-os">
+                <i class="bi bi-circle-half me-1"></i>OS Default
+              </label>
+              <input type="radio" class="btn-check" name="darkMode" id="dm-light" value="light" x-model="settings.darkMode" autocomplete="off" />
+              <label class="btn btn-outline-secondary" for="dm-light">
+                <i class="bi bi-sun me-1"></i>Light
+              </label>
+              <input type="radio" class="btn-check" name="darkMode" id="dm-dark"  value="dark"  x-model="settings.darkMode" autocomplete="off" />
+              <label class="btn btn-outline-secondary" for="dm-dark">
+                <i class="bi bi-moon me-1"></i>Dark
+              </label>
+            </div>
+            <div class="form-text mb-3">Applies immediately; saved with Settings.</div>
           </div>
 
           <!-- Logo + T&C -->

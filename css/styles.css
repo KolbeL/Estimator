@@ -9,6 +9,53 @@
   --theme-accent-text:   #1a1a1a;
 }
 
+/* ---- Dark mode overrides ---- */
+/* Bootstrap CSS variable overrides — used by tables, form-control color, etc.
+   color-scheme: dark makes browser-native controls (spinners, date pickers, file buttons) use dark styling. */
+[data-theme="dark"] { --bs-body-color: #e4e4e4; --bs-body-bg: #1c1c1e; --bs-border-color: #48484a; color-scheme: dark; }
+[data-theme="dark"] body               { background-color: #1c1c1e; color: #e4e4e4; }
+[data-theme="dark"] .card              { background-color: #252528; box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+[data-theme="dark"] .card-header       { background-color: inherit; border-bottom-color: #3a3a3e; }
+[data-theme="dark"] .form-label        { color: #e4e4e4; }
+/* form-text has its own explicit color in Bootstrap — .text-muted override doesn't reach it */
+[data-theme="dark"] .form-text         { color: #9e9ea0 !important; }
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select       { background-color: #2c2c2e; border-color: #48484a; color: #e4e4e4; }
+/* color-scheme: dark changes the browser's native placeholder to a light value; opacity: 0.3 on that
+   compounds to ~12% opacity which is invisible — use an explicit rgba color instead. */
+[data-theme="dark"] .form-control::placeholder,
+[data-theme="dark"] .form-control-sm::placeholder { color: rgba(228, 228, 228, 0.45); opacity: 1; }
+/* File input — ::file-selector-button is a separate pseudo-element Bootstrap styles explicitly */
+[data-theme="dark"] .form-control::file-selector-button { background-color: #252528; color: #bbb; border-color: #48484a; }
+[data-theme="dark"] .form-control:hover:not(:disabled):not([readonly])::file-selector-button { background-color: #444; color: #fff; border-color: #666; }
+[data-theme="dark"] .input-group-text  { background-color: #2c2c2e; border-color: #48484a; color: #bbb; }
+/* table-light overrides thead/tfoot which Bootstrap forces to light bg */
+[data-theme="dark"] .table             { --bs-table-color: #e4e4e4; --bs-table-border-color: #48484a; --bs-table-striped-bg: rgba(255,255,255,0.04); }
+[data-theme="dark"] .table-light       { --bs-table-color: #e4e4e4; --bs-table-bg: #2c2c2e; --bs-table-border-color: #48484a; }
+/* tbody cells are transparent by default — drag-handle and read-only total columns show card bg (#252528)
+   while input-filled cells show #2c2c2e; this makes all body cells a consistent shade. */
+[data-theme="dark"] .table > tbody > tr > td { background-color: #2c2c2e; }
+/* bg-light forces white — Labor subtotal box and optional badges */
+[data-theme="dark"] .bg-light          { background-color: #2c2c2e !important; color: #e4e4e4 !important; }
+[data-theme="dark"] .text-dark         { color: #e4e4e4 !important; }
+[data-theme="dark"] .text-muted        { color: #9e9ea0 !important; }
+[data-theme="dark"] .border            { border-color: #48484a !important; }
+[data-theme="dark"] .border-top        { border-color: #3a3a3e !important; }
+/* Hover highlight for list-item style divs (prefab picker, cloud estimates) */
+[data-theme="dark"] .p-2.border.rounded { transition: background-color 0.15s; }
+[data-theme="dark"] .p-2.border.rounded:hover { background-color: rgba(255,255,255,0.07); }
+[data-theme="dark"] .nav-btn.active    { background-color: rgba(255,255,255,0.2) !important; color: #fff !important; }
+/* Nav tabs — active tab uses primary color, inactive tabs are muted */
+[data-theme="dark"] .nav-tabs          { border-bottom-color: #48484a; }
+[data-theme="dark"] .nav-tabs .nav-link { color: #aaa; border-color: transparent; }
+[data-theme="dark"] .nav-tabs .nav-link:hover { color: #e4e4e4; background-color: rgba(255,255,255,0.06); border-color: transparent; }
+[data-theme="dark"] .nav-tabs .nav-link.active { background-color: var(--theme-primary); color: var(--theme-primary-text); border-color: var(--theme-primary); }
+[data-theme="dark"] .btn-outline-secondary { color: #bbb; border-color: #555; }
+[data-theme="dark"] .btn-outline-secondary:hover,
+[data-theme="dark"] .btn-check:checked + .btn-outline-secondary { background-color: #444; color: #fff; border-color: #666; }
+[data-theme="dark"] .btn-outline-danger { color: #f07070; border-color: #844; }
+[data-theme="dark"] .btn-outline-danger:hover { background-color: #522; color: #fbb; }
+
 body {
   background-color: #f4f5f8;
   font-family: 'Segoe UI', Arial, sans-serif;
@@ -73,6 +120,10 @@ body {
 .table td, .table th { vertical-align: middle; }
 
 .stepper-input { text-align: center; max-width: 90px; }
+
+/* Icon-only trash buttons in table cells: p-1 reduces horizontal padding to 0.25rem, making the button
+   taller than wide. Override horizontal padding to match the natural btn-sm value so it's roughly square. */
+.table td .btn-outline-danger { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
 
 [x-cloak] { display: none !important; }
 
