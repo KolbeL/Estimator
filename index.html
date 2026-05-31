@@ -48,7 +48,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase.js"></script>
-  <script src="js/app.js?v=13"></script>
+  <script src="js/app.js?v=14"></script>
   <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="estimatorApp()" x-init="init()" x-cloak>
@@ -433,21 +433,12 @@
 
     <!-- Scope of Work -->
     <div class="card mb-4">
-      <div class="card-header bg-primary-theme py-2 d-flex justify-content-between align-items-center">
+      <div class="card-header bg-primary-theme py-2">
         <h6 class="mb-0"><i class="bi bi-list-check me-1"></i>Scope of Work</h6>
-        <div class="d-flex gap-2">
-          <button class="btn btn-light btn-sm py-0 px-2" @click="openPrefabPicker()"
-            x-show="settings.prefabScopeItems.some(i => i.title || i.description)">
-            <i class="bi bi-lightning me-1"></i>Insert Prefab
-          </button>
-          <button class="btn btn-light btn-sm py-0 px-2" @click="addScopeItem()">
-            <i class="bi bi-plus-circle me-1"></i>Add Item
-          </button>
-        </div>
       </div>
       <div class="card-body">
         <div x-show="estimate.scopeOfWork.length === 0" class="text-muted text-center py-2 small">
-          No scope items yet — click <strong>Add Item</strong> to begin.
+          No scope items yet.
         </div>
         <div>
           <template x-for="(item, i) in estimate.scopeOfWork" :key="item._id">
@@ -500,22 +491,28 @@
             </div>
           </template>
         </div>
+        <div class="d-flex gap-2 mt-2">
+          <button class="btn btn-outline-secondary btn-sm" @click="addScopeItem()">
+            <i class="bi bi-plus-circle me-1"></i>Add Item
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" @click="openPrefabPicker()"
+            x-show="settings.prefabScopeItems.some(i => i.title || i.description)">
+            <i class="bi bi-lightning me-1"></i>Insert Prefab
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Project Photos -->
     <div class="card mb-4">
-      <div class="card-header bg-primary-theme py-2 d-flex justify-content-between align-items-center">
+      <div class="card-header bg-primary-theme py-2">
         <h6 class="mb-0"><i class="bi bi-camera me-1"></i>Project Photos</h6>
-        <button class="btn btn-light btn-sm py-0 px-2" @click="addPhoto()">
-          <i class="bi bi-plus-circle me-1"></i>Add Photo
-        </button>
       </div>
       <div class="card-body">
         <input type="file" accept="image/*" multiple x-ref="photoInput"
                @change="handlePhotoFile($event)" class="d-none" />
         <div x-show="estimate.photos.length === 0" class="text-muted text-center py-2 small">
-          No photos yet — click <strong>Add Photo</strong> to attach images.
+          No photos yet.
         </div>
         <div class="row g-3">
           <template x-for="(photo, i) in estimate.photos" :key="photo.id">
@@ -536,20 +533,22 @@
             </div>
           </template>
         </div>
+        <div class="mt-2">
+          <button class="btn btn-outline-secondary btn-sm" @click="addPhoto()">
+            <i class="bi bi-plus-circle me-1"></i>Add Photo
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Materials -->
     <div class="card mb-4">
-      <div class="card-header bg-primary-theme py-2 d-flex justify-content-between align-items-center">
+      <div class="card-header bg-primary-theme py-2">
         <h6 class="mb-0"><i class="bi bi-boxes me-1"></i>Materials</h6>
-        <button class="btn btn-light btn-sm py-0 px-2" @click="addMaterial()">
-          <i class="bi bi-plus-circle me-1"></i>Add Row
-        </button>
       </div>
       <div class="card-body p-0">
         <div x-show="estimate.costs.materials.length === 0" class="text-muted text-center py-3 small">
-          No materials added — click <strong>Add Row</strong>.
+          No materials added yet.
         </div>
         <table class="table table-sm table-bordered mb-0"
           x-show="estimate.costs.materials.length > 0">
@@ -617,19 +616,21 @@
             </tr>
           </tfoot>
         </table>
+        <div class="px-3 py-2">
+          <button class="btn btn-outline-secondary btn-sm" @click="addMaterial()">
+            <i class="bi bi-plus-circle me-1"></i>Add Row
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Machinery -->
     <div class="card mb-4">
-      <div class="card-header bg-accent-theme py-2 d-flex justify-content-between align-items-center">
+      <div class="card-header bg-accent-theme py-2">
         <h6 class="mb-0">
           <i class="bi bi-truck me-1"></i>Machinery Rentals
           <span class="badge bg-secondary ms-1" style="font-size:.65rem">Optional</span>
         </h6>
-        <button class="btn btn-light btn-sm py-0 px-2" @click="addMachinery()">
-          <i class="bi bi-plus-circle me-1"></i>Add Row
-        </button>
       </div>
       <div class="card-body p-0">
         <div x-show="estimate.costs.machinery.length === 0" class="text-muted text-center py-3 small">
@@ -679,6 +680,11 @@
             </tr>
           </tfoot>
         </table>
+        <div class="px-3 py-2">
+          <button class="btn btn-outline-secondary btn-sm" @click="addMachinery()">
+            <i class="bi bi-plus-circle me-1"></i>Add Row
+          </button>
+        </div>
       </div>
     </div>
 
@@ -688,7 +694,7 @@
         <h6 class="mb-0"><i class="bi bi-person-workspace me-1"></i>Labor</h6>
       </div>
       <div class="card-body">
-        <div class="row g-3 align-items-end">
+        <div class="row g-3 align-items-start">
           <div class="col-auto">
             <label class="form-label fw-semibold">Estimated Days</label>
             <div class="input-group">
@@ -704,12 +710,26 @@
             <div class="form-text">0.5-day increments</div>
           </div>
           <div class="col-auto">
+            <label class="form-label fw-semibold">Number of Workers</label>
+            <div class="input-group">
+              <button class="btn btn-outline-secondary" type="button" @click="decrementLaborWorkers()">
+                <i class="bi bi-dash"></i>
+              </button>
+              <input type="number" class="form-control stepper-input" x-model.number="estimate.costs.laborWorkers"
+                min="1" step="1" />
+              <button class="btn btn-outline-secondary" type="button" @click="incrementLaborWorkers()">
+                <i class="bi bi-plus"></i>
+              </button>
+            </div>
+          </div>
+          <div class="col-auto">
             <label class="form-label fw-semibold">Daily Rate</label>
             <div class="input-group">
               <span class="input-group-text">$</span>
               <input type="number" class="form-control" style="max-width:130px"
                 x-model.number="estimate.costs.laborDailyRate" min="0" step="0.01" @focus="$event.target.select()" />
             </div>
+            <div class="form-text">Per Worker</div>
           </div>
           <div class="col-auto">
             <label class="form-label fw-semibold">Labor Subtotal</label>
@@ -722,14 +742,11 @@
 
     <!-- Miscellaneous -->
     <div class="card mb-4">
-      <div class="card-header bg-primary-theme py-2 d-flex justify-content-between align-items-center">
+      <div class="card-header bg-primary-theme py-2">
         <h6 class="mb-0">
           <i class="bi bi-receipt me-1"></i>Miscellaneous
           <span class="badge bg-light text-dark ms-1" style="font-size:.65rem">Optional</span>
         </h6>
-        <button class="btn btn-light btn-sm py-0 px-2" @click="addMisc()">
-          <i class="bi bi-plus-circle me-1"></i>Add Row
-        </button>
       </div>
       <div class="card-body p-0">
         <div x-show="estimate.costs.misc.length === 0" class="text-muted text-center py-3 small">
@@ -766,6 +783,11 @@
             </tr>
           </tfoot>
         </table>
+        <div class="px-3 py-2">
+          <button class="btn btn-outline-secondary btn-sm" @click="addMisc()">
+            <i class="bi bi-plus-circle me-1"></i>Add Row
+          </button>
+        </div>
       </div>
     </div>
 

@@ -121,6 +121,7 @@ document.addEventListener('alpine:init', () => {
         materials: [],
         machinery: [],
         laborDays: 1.0,
+        laborWorkers: 1,
         laborDailyRate: 400.00,
         misc: []
       }
@@ -208,9 +209,10 @@ Any additional work beyond the services listed above may incur extra charges.`,
           if (costs) {
             this.estimate.costs.materials  = costs.materials  || [];
             this.estimate.costs.machinery  = costs.machinery  || [];
-            this.estimate.costs.laborDays  = costs.laborDays  ?? 1.0;
+            this.estimate.costs.laborDays     = costs.laborDays     ?? 1.0;
+            this.estimate.costs.laborWorkers  = costs.laborWorkers  ?? 1;
             this.estimate.costs.laborDailyRate = costs.laborDailyRate ?? 400;
-            this.estimate.costs.misc       = costs.misc       || [];
+            this.estimate.costs.misc           = costs.misc          || [];
           }
           this.estimate.scopeOfWork = (scopeOfWork || []).map(i => ({ _id: i._id || Date.now() + Math.random(), ...i }));
           this.estimate.photos = photos || [];
@@ -636,7 +638,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
       img.src = dataUrl;
     },
 
-    // --- Labor stepper (0.5 increments) ---
+    // --- Labor steppers ---
     decrementLaborDays() {
       const next = Math.round((this.estimate.costs.laborDays - 0.5) * 10) / 10;
       if (next >= 0.5) this.estimate.costs.laborDays = next;
@@ -648,6 +650,12 @@ Any additional work beyond the services listed above may incur extra charges.`,
       const v = parseFloat(this.estimate.costs.laborDays) || 0.5;
       this.estimate.costs.laborDays = Math.max(0.5, Math.round(v * 2) / 2);
     },
+    decrementLaborWorkers() {
+      if ((this.estimate.costs.laborWorkers || 1) > 1) this.estimate.costs.laborWorkers--;
+    },
+    incrementLaborWorkers() {
+      this.estimate.costs.laborWorkers = (+(this.estimate.costs.laborWorkers) || 1) + 1;
+    },
 
     // --- Calculations ---
     materialsTotal() {
@@ -657,7 +665,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
       return this.estimate.costs.machinery.reduce((s, m) => s + (+(m.duration) || 0) * (+(m.rate) || 0), 0);
     },
     laborTotal() {
-      return (+(this.estimate.costs.laborDays) || 0) * (+(this.estimate.costs.laborDailyRate) || 0);
+      return (+(this.estimate.costs.laborDays) || 0) * (+(this.estimate.costs.laborWorkers) || 1) * (+(this.estimate.costs.laborDailyRate) || 0);
     },
     miscTotal() {
       return this.estimate.costs.misc.reduce((s, m) => s + (+(m.amount) || 0), 0);
@@ -822,9 +830,10 @@ Any additional work beyond the services listed above may incur extra charges.`,
         if (costs) {
           this.estimate.costs.materials = costs.materials || [];
           this.estimate.costs.machinery = costs.machinery || [];
-          this.estimate.costs.laborDays = costs.laborDays ?? 1.0;
+          this.estimate.costs.laborDays     = costs.laborDays     ?? 1.0;
+          this.estimate.costs.laborWorkers  = costs.laborWorkers  ?? 1;
           this.estimate.costs.laborDailyRate = costs.laborDailyRate ?? 400;
-          this.estimate.costs.misc = costs.misc || [];
+          this.estimate.costs.misc           = costs.misc          || [];
         }
         this.estimate.scopeOfWork = (scopeOfWork || []).map(i => ({ _id: i._id || Date.now() + Math.random(), ...i }));
         this.estimate.photos = photos || [];
@@ -889,9 +898,10 @@ Any additional work beyond the services listed above may incur extra charges.`,
         if (costs) {
           this.estimate.costs.materials = costs.materials || [];
           this.estimate.costs.machinery = costs.machinery || [];
-          this.estimate.costs.laborDays = costs.laborDays ?? 1.0;
+          this.estimate.costs.laborDays     = costs.laborDays     ?? 1.0;
+          this.estimate.costs.laborWorkers  = costs.laborWorkers  ?? 1;
           this.estimate.costs.laborDailyRate = costs.laborDailyRate ?? 400;
-          this.estimate.costs.misc = costs.misc || [];
+          this.estimate.costs.misc           = costs.misc          || [];
         }
         this.estimate.scopeOfWork = (scopeOfWork || []).map(item => ({ _id: item._id || Date.now() + Math.random(), ...item }));
         this.estimate.photos = photos || [];
@@ -944,6 +954,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
       this.estimate.costs.materials = [];
       this.estimate.costs.machinery = [];
       this.estimate.costs.laborDays = 1.0;
+      this.estimate.costs.laborWorkers = 1;
       this.estimate.costs.laborDailyRate = 400.00;
       this.estimate.costs.misc = [];
     },
@@ -1186,12 +1197,13 @@ Any additional work beyond the services listed above may incur extra charges.`,
       // ---- Labor ----
       doc.autoTable({
         startY: y, margin: { left: M, right: M }, tableWidth: CW,
-        head: [['Labor', 'Days', 'Daily Rate', 'Total']],
+        head: [['Labor', 'Days', 'Workers', 'Rate/Laborer', 'Total']],
         body: [[
           'Labor',
-          { content: e.costs.laborDays,                              styles: { halign: 'center' } },
-          { content: money(e.costs.laborDailyRate) + '/day',         styles: { halign: 'right' } },
-          { content: money(this.laborTotal()),                        styles: { halign: 'right', fontStyle: 'bold' } }
+          { content: e.costs.laborDays,                                   styles: { halign: 'center' } },
+          { content: e.costs.laborWorkers ?? 1,                           styles: { halign: 'center' } },
+          { content: money(e.costs.laborDailyRate) + '/day',              styles: { halign: 'right' } },
+          { content: money(this.laborTotal()),                             styles: { halign: 'right', fontStyle: 'bold' } }
         ]],
         headStyles: { fillColor: GREEN, textColor: 255, fontSize: 10, fontStyle: 'bold' },
         bodyStyles: { fontSize: 10 },
