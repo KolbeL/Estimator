@@ -1207,7 +1207,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
         ]],
         headStyles: { fillColor: GREEN, textColor: 255, fontSize: 10, fontStyle: 'bold' },
         bodyStyles: { fontSize: 10 },
-        columnStyles: { 0: { cellWidth: CW*0.46 }, 1: { cellWidth: CW*0.14 }, 2: { cellWidth: CW*0.2 }, 3: { cellWidth: CW*0.2 } }
+        columnStyles: { 0: { cellWidth: CW*0.32 }, 1: { cellWidth: CW*0.12 }, 2: { cellWidth: CW*0.12 }, 3: { cellWidth: CW*0.24 }, 4: { cellWidth: CW*0.20 } }
       });
       y = doc.lastAutoTable.finalY + 14;
 
