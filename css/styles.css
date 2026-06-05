@@ -98,6 +98,8 @@ body {
 .scope-drop-below { border-bottom: 2px solid var(--theme-primary); }
 
 /* ---- General ---- */
+.card-body { padding: 0.75rem; }
+
 .card {
   border: none;
   box-shadow: 0 1px 4px rgba(0,0,0,0.1);

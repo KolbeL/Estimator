@@ -8,7 +8,7 @@
   <style>[x-cloak]{display:none!important}</style>
   <link rel="stylesheet" href="vendor/bootstrap.min.css" />
   <link rel="stylesheet" href="vendor/bootstrap-icons.min.css" />
-  <link rel="stylesheet" href="css/styles.css?v=17" />
+  <link rel="stylesheet" href="css/styles.css?v=18" />
   <script>
   (function(){
     try {
@@ -401,7 +401,7 @@
   </nav>
 
   <!-- ===================== ESTIMATOR VIEW ===================== -->
-  <div x-show="currentView === 'estimator'" class="container-fluid px-4" style="max-width:1100px;">
+  <div x-show="currentView === 'estimator'" class="container-fluid px-2" style="max-width:1100px;">
 
     <!-- Client Information -->
     <div class="card mb-4">
@@ -456,12 +456,12 @@
                 'scope-drop-above': dropIndex === i && dragIndex > i,
                 'scope-drop-below': dropIndex === i && dragIndex < i
               }">
-              <div class="drag-handle text-muted d-flex align-items-center justify-content-center px-1"
-                style="min-width:28px; cursor:grab; touch-action:none;"
+              <div class="drag-handle text-muted d-flex align-items-center justify-content-center"
+                style="min-width:14px; cursor:grab; touch-action:none;"
                 @touchstart.prevent="touchDragStart($event, i)"
                 @touchmove.prevent="touchDragMove($event)"
                 @touchend.prevent="touchDragEnd()">
-                <i class="bi bi-grip-vertical fs-4"></i>
+                <i class="bi bi-grip-vertical"></i>
               </div>
               <div class="flex-grow-1">
                 <div class="row g-2">
@@ -550,72 +550,61 @@
         <div x-show="estimate.costs.materials.length === 0" class="text-muted text-center py-3 small">
           No materials added yet.
         </div>
-        <table class="table table-sm table-bordered mb-0"
-          x-show="estimate.costs.materials.length > 0">
-          <thead class="table-light">
-            <tr>
-              <th style="width:28px"></th>
-              <th>Item</th>
-              <th style="width:60px">Qty</th>
-              <th style="width:80px">Price</th>
-              <th style="width:65px">Total</th>
-              <th style="width:40px"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <template x-for="(m, i) in estimate.costs.materials" :key="i">
-              <tr :data-material-index="i"
-                draggable="true"
-                @dragstart="matDragStart($event, i)"
-                @dragover.prevent="matDragOver($event, i)"
-                @dragleave="matDragLeave($event)"
-                @drop.prevent="matDrop($event, i)"
-                @dragend="matDragEnd()"
-                :class="{
-                  'scope-drag-pending': _touchPendingIdx === i && _touchDragTarget === 'materials',
-                  'scope-dragging': matDragIndex === i,
-                  'scope-drop-above': matDropIndex === i && matDragIndex > i,
-                  'scope-drop-below': matDropIndex === i && matDragIndex < i
-                }">
-                <td class="p-0 text-center align-middle">
-                  <div class="drag-handle text-muted d-flex align-items-center justify-content-center"
-                    style="height:100%; min-height:34px; cursor:grab; touch-action:none;"
-                    @touchstart.prevent="matTouchDragStart($event, i)"
-                    @touchmove.prevent="touchDragMove($event)"
-                    @touchend.prevent="touchDragEnd()">
-                    <i class="bi bi-grip-vertical"></i>
-                  </div>
-                </td>
-                <td><input type="text" class="form-control form-control-sm" x-model="m.name" :placeholder="tradePlaceholders().material" spellcheck="true" autocorrect="on" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
-                <td><input type="number" class="form-control form-control-sm" x-model.number="m.qty" min="0" step="1" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
-                <td><input type="number" class="form-control form-control-sm" x-model.number="m.unitPrice" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
-                <td class="fw-semibold small" x-text="fmt((+m.qty||0)*(+m.unitPrice||0))"></td>
-                <td>
-                  <button class="btn btn-outline-danger btn-sm p-1" @click="removeMaterial(i)">
+        <div x-show="estimate.costs.materials.length > 0" class="px-2 pt-2">
+          <template x-for="(m, i) in estimate.costs.materials" :key="i">
+            <div class="d-flex align-items-stretch gap-1 mb-2 material-row"
+              :data-material-index="i"
+              draggable="true"
+              @dragstart="matDragStart($event, i)"
+              @dragover.prevent="matDragOver($event, i)"
+              @dragleave="matDragLeave($event)"
+              @drop.prevent="matDrop($event, i)"
+              @dragend="matDragEnd()"
+              :class="{
+                'scope-drag-pending': _touchPendingIdx === i && _touchDragTarget === 'materials',
+                'scope-dragging': matDragIndex === i,
+                'scope-drop-above': matDropIndex === i && matDragIndex > i,
+                'scope-drop-below': matDropIndex === i && matDragIndex < i
+              }">
+              <div class="drag-handle text-muted d-flex align-items-center justify-content-center"
+                style="min-width:14px; cursor:grab; touch-action:none;"
+                @touchstart.prevent="matTouchDragStart($event, i)"
+                @touchmove.prevent="touchDragMove($event)"
+                @touchend.prevent="touchDragEnd()">
+                <i class="bi bi-grip-vertical"></i>
+              </div>
+              <div class="flex-grow-1">
+                <div class="d-flex align-items-center gap-1">
+                  <input type="text" class="form-control form-control-sm flex-grow-1" x-model="m.name" :placeholder="tradePlaceholders().material" spellcheck="true" autocorrect="on" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" />
+                  <button class="btn btn-outline-danger btn-sm flex-shrink-0" @click="removeMaterial(i)">
                     <i class="bi bi-trash"></i>
                   </button>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-          <tfoot class="table-light">
-            <tr>
-              <td colspan="4" class="text-end fw-semibold pe-3 py-1">Subtotal:</td>
-              <td class="fw-semibold py-1" x-text="fmt(materialsTotal())"></td>
-              <td class="py-1"></td>
-            </tr>
-            <tr x-show="settings.taxRate > 0" class="text-muted small">
-              <td colspan="4" class="text-end pe-3 py-0">Tax (<span x-text="settings.taxRate"></span>%):</td>
-              <td class="py-0" x-text="fmt(materialsTotal() * settings.taxRate / 100)"></td>
-              <td class="py-0"></td>
-            </tr>
-            <tr x-show="settings.taxRate > 0">
-              <td colspan="4" class="text-end fw-bold pe-3 py-1 border-top">Total with Tax:</td>
-              <td class="fw-bold py-1 border-top" x-text="fmt(materialsTotal() * (1 + settings.taxRate / 100))"></td>
-              <td class="py-1 border-top"></td>
-            </tr>
-          </tfoot>
-        </table>
+                </div>
+                <div class="d-flex align-items-center gap-1 mt-1">
+                  <span class="text-muted flex-shrink-0" style="font-size:0.75rem">Qty</span>
+                  <input type="number" class="form-control form-control-sm" style="width:50px" x-model.number="m.qty" min="0" step="1" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" />
+                  <span class="text-muted flex-shrink-0" style="font-size:0.75rem">Ea.</span>
+                  <input type="number" class="form-control form-control-sm text-end" style="width:70px" x-model.number="m.unitPrice" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" />
+                  <span class="fw-semibold small flex-shrink-0 ms-auto" x-text="fmt((+m.qty||0)*(+m.unitPrice||0))"></span>
+                </div>
+              </div>
+            </div>
+          </template>
+          <div class="border-top pt-2 mt-1 small">
+            <div class="d-flex justify-content-end gap-3 mb-1">
+              <span class="fw-semibold">Subtotal:</span>
+              <span class="fw-semibold text-end" x-text="fmt(materialsTotal())" style="min-width:70px"></span>
+            </div>
+            <div class="d-flex justify-content-end gap-3 mb-1 text-muted" x-show="settings.taxRate > 0">
+              <span>Tax (<span x-text="settings.taxRate"></span>%):</span>
+              <span class="text-end" x-text="fmt(materialsTotal() * settings.taxRate / 100)" style="min-width:70px"></span>
+            </div>
+            <div class="d-flex justify-content-end gap-3 fw-bold border-top pt-1 pb-1" x-show="settings.taxRate > 0">
+              <span>Total with Tax:</span>
+              <span class="text-end" x-text="fmt(materialsTotal() * (1 + settings.taxRate / 100))" style="min-width:70px"></span>
+            </div>
+          </div>
+        </div>
         <div class="px-3 py-2 d-flex gap-2">
           <button class="btn btn-outline-secondary btn-sm" @click="addMaterial()">
             <i class="bi bi-plus-circle me-1"></i>Add Row
@@ -655,8 +644,8 @@
               <tr>
                 <td><input type="text" class="form-control form-control-sm" x-model="m.name" placeholder="Excavator" spellcheck="true" autocorrect="on" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
                 <td><input type="number" class="form-control form-control-sm" x-model.number="m.duration" min="0" step="0.5" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
-                <td><input type="number" class="form-control form-control-sm" x-model.number="m.rate" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
-                <td class="fw-semibold small" x-text="fmt((+m.duration||0)*(+m.rate||0))"></td>
+                <td><input type="number" class="form-control form-control-sm text-end" x-model.number="m.rate" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
+                <td class="fw-semibold small text-end" x-text="fmt((+m.duration||0)*(+m.rate||0))"></td>
                 <td>
                   <button class="btn btn-outline-danger btn-sm p-1" @click="removeMachinery(i)">
                     <i class="bi bi-trash"></i>
@@ -668,17 +657,17 @@
           <tfoot class="table-light">
             <tr>
               <td colspan="3" class="text-end fw-semibold pe-3 py-1">Subtotal:</td>
-              <td class="fw-semibold py-1" x-text="fmt(machineryTotal())"></td>
+              <td class="fw-semibold text-end py-1" x-text="fmt(machineryTotal())"></td>
               <td class="py-1"></td>
             </tr>
             <tr x-show="settings.taxRate > 0" class="text-muted small">
               <td colspan="3" class="text-end pe-3 py-0">Tax (<span x-text="settings.taxRate"></span>%):</td>
-              <td class="py-0" x-text="fmt(machineryTotal() * settings.taxRate / 100)"></td>
+              <td class="text-end py-0" x-text="fmt(machineryTotal() * settings.taxRate / 100)"></td>
               <td class="py-0"></td>
             </tr>
             <tr x-show="settings.taxRate > 0">
               <td colspan="3" class="text-end fw-bold pe-3 py-1 border-top">Total with Tax:</td>
-              <td class="fw-bold py-1 border-top" x-text="fmt(machineryTotal() * (1 + settings.taxRate / 100))"></td>
+              <td class="fw-bold text-end py-1 border-top" x-text="fmt(machineryTotal() * (1 + settings.taxRate / 100))"></td>
               <td class="py-1 border-top"></td>
             </tr>
           </tfoot>
@@ -736,7 +725,7 @@
           </div>
           <div class="col-auto">
             <label class="form-label fw-semibold">Labor Subtotal</label>
-            <div class="form-control bg-light fw-bold" style="min-width:110px"
+            <div class="form-control bg-light fw-bold text-end" style="min-width:110px"
               x-text="fmt(laborTotal())"></div>
           </div>
         </div>
@@ -769,7 +758,7 @@
               <tr>
                 <td><input type="text" class="form-control form-control-sm" x-model="m.description"
                   placeholder="Permit fees, dump charges…" spellcheck="true" autocorrect="on" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
-                <td><input type="number" class="form-control form-control-sm" x-model.number="m.amount" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
+                <td><input type="number" class="form-control form-control-sm text-end" x-model.number="m.amount" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
                 <td>
                   <button class="btn btn-outline-danger btn-sm p-1" @click="removeMisc(i)">
                     <i class="bi bi-trash"></i>
@@ -781,7 +770,7 @@
           <tfoot class="table-light">
             <tr>
               <td class="text-end fw-bold pe-3">Misc Subtotal:</td>
-              <td class="fw-bold" x-text="fmt(miscTotal())"></td>
+              <td class="fw-bold text-end" x-text="fmt(miscTotal())"></td>
               <td></td>
             </tr>
           </tfoot>
