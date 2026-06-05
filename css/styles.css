@@ -45,6 +45,8 @@
 [data-theme="dark"] .p-2.border.rounded { transition: background-color 0.15s; }
 [data-theme="dark"] .p-2.border.rounded:hover { background-color: rgba(255,255,255,0.07); }
 [data-theme="dark"] .nav-btn.active    { background-color: rgba(255,255,255,0.2) !important; color: #fff !important; }
+/* Calculator modal tabs — compact to fit all 4 on one row on mobile */
+.calc-tabs .nav-link { padding: 0.35rem 0.55rem; font-size: 0.8rem; }
 /* Nav tabs — active tab uses primary color, inactive tabs are muted */
 [data-theme="dark"] .nav-tabs          { border-bottom-color: #48484a; }
 [data-theme="dark"] .nav-tabs .nav-link { color: #aaa; border-color: transparent; }
