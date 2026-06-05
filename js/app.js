@@ -114,7 +114,7 @@ document.addEventListener('alpine:init', () => {
       paint:  { name: 'Paint',           wallsSqFt: 0, ceilingSqFt: 0, doors: 0, windows: 0, coats: 2, coverage: 350, pricePerGal: 0 },
       gravel: { name: 'Gravel',          length: 0, width: 0,  depth: 3,      pricePerYd: 0 },
       sod:    { name: 'Sod',             mode: 'dimensions', length: 0, width: 0, sqFtDirect: 0, sqFtPerPallet: 450, pricePerPallet: 0 },
-      tile:   { name: 'Tile / Flooring', mode: 'dimensions', length: 0, width: 0, sqFtDirect: 0, waste: 10, pricePerSqFt: 0 },
+      tile:   { name: 'Flooring', mode: 'dimensions', length: 0, width: 0, sqFtDirect: 0, waste: 10, pricePerSqFt: 0 },
     },
 
     estimate: {
