@@ -108,6 +108,15 @@ document.addEventListener('alpine:init', () => {
     confirmMessage: '',
     confirmResolve: null,
 
+    calcModalOpen: false,
+    calcTab: 'paint',
+    calc: {
+      paint:  { name: 'Paint',           wallsSqFt: 0, ceilingSqFt: 0, doors: 0, windows: 0, coats: 2, coverage: 350, pricePerGal: 0 },
+      gravel: { name: 'Gravel',          length: 0, width: 0,  depth: 3,      pricePerYd: 0 },
+      sod:    { name: 'Sod',             mode: 'dimensions', length: 0, width: 0, sqFtDirect: 0, sqFtPerPallet: 450, pricePerPallet: 0 },
+      tile:   { name: 'Tile / Flooring', mode: 'dimensions', length: 0, width: 0, sqFtDirect: 0, waste: 10, pricePerSqFt: 0 },
+    },
+
     estimate: {
       customerName: '',
       customerAddress: '',
@@ -939,6 +948,53 @@ Any additional work beyond the services listed above may incur extra charges.`,
       if (this.confirmResolve) this.confirmResolve(false);
       this.confirmMessage = '';
       this.confirmResolve = null;
+    },
+
+    calcResult() {
+      const c = this.calc;
+      if (this.calcTab === 'paint') {
+        const wallsNet = Math.max(0, (+c.paint.wallsSqFt || 0) - (+c.paint.doors || 0) * 20 - (+c.paint.windows || 0) * 15);
+        const totalSqFt = wallsNet + (+c.paint.ceilingSqFt || 0);
+        const gals = Math.ceil(totalSqFt * (+c.paint.coats || 1) / (+c.paint.coverage || 350));
+        return { qty: gals || 0, unitPrice: +(c.paint.pricePerGal) || 0 };
+      }
+      if (this.calcTab === 'gravel') {
+        const yd3 = ((+c.gravel.length || 0) * (+c.gravel.width || 0) * ((+c.gravel.depth || 0) / 12)) / 27;
+        return { qty: Math.ceil(yd3 * 10) / 10 || 0, unitPrice: +(c.gravel.pricePerYd) || 0 };
+      }
+      if (this.calcTab === 'sod') {
+        const sqFt = c.sod.mode === 'sqft' ? (+c.sod.sqFtDirect || 0) : (+c.sod.length || 0) * (+c.sod.width || 0);
+        const pallets = Math.ceil(sqFt / (+c.sod.sqFtPerPallet || 450));
+        return { qty: pallets || 0, unitPrice: +(c.sod.pricePerPallet) || 0 };
+      }
+      if (this.calcTab === 'tile') {
+        const base = c.tile.mode === 'sqft' ? (+c.tile.sqFtDirect || 0) : (+c.tile.length || 0) * (+c.tile.width || 0);
+        const sqFt = Math.ceil(parseFloat((base * (1 + (+c.tile.waste || 0) / 100)).toFixed(6)));
+        return { qty: sqFt || 0, unitPrice: +(c.tile.pricePerSqFt) || 0 };
+      }
+      return { qty: 0, unitPrice: 0 };
+    },
+    calcResultLabel() {
+      const r = this.calcResult();
+      const units = { paint: 'gal', gravel: 'cu yd', sod: 'pallets', tile: 'sq ft' };
+      const u = units[this.calcTab] || '';
+      if (!r.qty) return '—';
+      if (this.calcTab === 'paint') {
+        const c = this.calc.paint;
+        const wallsNet = Math.max(0, (+c.wallsSqFt || 0) - (+c.doors || 0) * 20 - (+c.windows || 0) * 15);
+        const parts = [];
+        if (wallsNet > 0) parts.push(`${wallsNet} sq ft walls`);
+        if (+c.ceilingSqFt > 0) parts.push(`${+c.ceilingSqFt} sq ft ceiling`);
+        const breakdown = parts.length ? `(${parts.join(' + ')})  →  ` : '';
+        return `${breakdown}${r.qty} gal  ×  ${this.fmt(r.unitPrice)}  =  ${this.fmt(r.qty * r.unitPrice)}`;
+      }
+      return `${r.qty} ${u}  ×  ${this.fmt(r.unitPrice)}  =  ${this.fmt(r.qty * r.unitPrice)}`;
+    },
+    addFromCalculator() {
+      const r = this.calcResult();
+      if (!r.qty) return;
+      this.estimate.costs.materials.push({ name: this.calc[this.calcTab]?.name || '', qty: r.qty, unitPrice: r.unitPrice });
+      this.calcModalOpen = false;
     },
 
     _resetEstimate() {

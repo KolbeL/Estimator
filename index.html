@@ -616,9 +616,12 @@
             </tr>
           </tfoot>
         </table>
-        <div class="px-3 py-2">
+        <div class="px-3 py-2 d-flex gap-2">
           <button class="btn btn-outline-secondary btn-sm" @click="addMaterial()">
             <i class="bi bi-plus-circle me-1"></i>Add Row
+          </button>
+          <button class="btn btn-outline-secondary btn-sm" @click="calcModalOpen = true">
+            <i class="bi bi-calculator me-1"></i>Calculator
           </button>
         </div>
       </div>
@@ -1154,6 +1157,209 @@
 
   </div>
   <!-- end trade settings view -->
+
+  <!-- Material Calculator Modal -->
+  <div x-show="calcModalOpen"
+    class="position-fixed top-0 start-0 w-100 h-100 modal-overlay"
+    style="background:rgba(0,0,0,0.5); z-index:1050;"
+    @click.self="calcModalOpen = false">
+    <div class="card shadow-lg mx-3 d-flex flex-column"
+      style="width:100%; max-width:480px; max-height:88vh;">
+      <div class="card-header bg-primary-theme d-flex justify-content-between align-items-center py-2">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-calculator me-1"></i>Material Calculator</h6>
+        <button @click="calcModalOpen = false" class="btn p-0 lh-1" style="color:inherit; opacity:.8; font-size:1.2rem;">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="d-flex flex-column overflow-hidden">
+        <ul class="nav nav-tabs px-3 pt-2 flex-shrink-0">
+          <li class="nav-item">
+            <button class="nav-link" :class="calcTab === 'paint'  ? 'active' : ''" @click="calcTab = 'paint'">
+              <i class="bi bi-brush me-1"></i>Paint
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" :class="calcTab === 'gravel' ? 'active' : ''" @click="calcTab = 'gravel'">
+              <i class="bi bi-layers me-1"></i>Gravel
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" :class="calcTab === 'sod'    ? 'active' : ''" @click="calcTab = 'sod'">
+              <i class="bi bi-tree me-1"></i>Sod
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" :class="calcTab === 'tile'   ? 'active' : ''" @click="calcTab = 'tile'">
+              <i class="bi bi-grid me-1"></i>Tile / Floor
+            </button>
+          </li>
+        </ul>
+        <div class="p-3 overflow-auto">
+
+          <!-- Material name -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small mb-1">Material Name</label>
+            <input type="text" class="form-control form-control-sm"
+              x-model="calc[calcTab].name"
+              placeholder="e.g. Exterior Paint – White" />
+          </div>
+
+          <!-- Paint inputs -->
+          <div x-show="calcTab === 'paint'">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small mb-1">Walls Area (sq ft)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.paint.wallsSqFt" min="0" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Ceiling Area (sq ft)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.paint.ceilingSqFt" min="0" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1"># Doors <span class="text-muted fw-normal">(−20 sq ft ea)</span></label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.paint.doors" min="0" step="1" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1"># Windows <span class="text-muted fw-normal">(−15 sq ft ea)</span></label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.paint.windows" min="0" step="1" @focus="$event.target.select()" />
+              </div>
+              <div class="col-4">
+                <label class="form-label small mb-1">Coats</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.paint.coats" min="1" step="1" @focus="$event.target.select()" />
+              </div>
+              <div class="col-4">
+                <label class="form-label small mb-1">Sq Ft / Gal</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.paint.coverage" min="1" @focus="$event.target.select()" />
+              </div>
+              <div class="col-4">
+                <label class="form-label small mb-1">Price / Gal ($)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.paint.pricePerGal" min="0" step="0.01" @focus="$event.target.select()" />
+              </div>
+            </div>
+            <div class="small text-muted mt-2"
+              x-show="calc.paint.doors > 0 || calc.paint.windows > 0">
+              Walls net: <strong x-text="Math.max(0, (+calc.paint.wallsSqFt||0) - (+calc.paint.doors||0)*20 - (+calc.paint.windows||0)*15)"></strong> sq ft
+              <span class="ms-1">(<span x-text="(+calc.paint.doors||0)*20 + (+calc.paint.windows||0)*15"></span> sq ft deducted)</span>
+            </div>
+          </div>
+
+          <!-- Gravel inputs -->
+          <div x-show="calcTab === 'gravel'">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small mb-1">Length (ft)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.gravel.length" min="0" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Width (ft)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.gravel.width" min="0" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Depth (inches)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.gravel.depth" min="0.5" step="0.5" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Price per Cu Yd ($)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.gravel.pricePerYd" min="0" step="0.01" @focus="$event.target.select()" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Sod inputs -->
+          <div x-show="calcTab === 'sod'">
+            <div class="btn-group btn-group-sm mb-2 w-100" role="group">
+              <button type="button" class="btn"
+                :class="calc.sod.mode === 'dimensions' ? 'btn-secondary' : 'btn-outline-secondary'"
+                @click="calc.sod.mode = 'dimensions'">
+                <i class="bi bi-arrows-angle-expand me-1"></i>Dimensions (L × W)
+              </button>
+              <button type="button" class="btn"
+                :class="calc.sod.mode === 'sqft' ? 'btn-secondary' : 'btn-outline-secondary'"
+                @click="calc.sod.mode = 'sqft'">
+                <i class="bi bi-bounding-box me-1"></i>Total Sq Ft
+              </button>
+            </div>
+            <div class="row g-2">
+              <div class="col-6" x-show="calc.sod.mode === 'dimensions'">
+                <label class="form-label small mb-1">Length (ft)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.sod.length" min="0" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6" x-show="calc.sod.mode === 'dimensions'">
+                <label class="form-label small mb-1">Width (ft)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.sod.width" min="0" @focus="$event.target.select()" />
+              </div>
+              <div class="col-12" x-show="calc.sod.mode === 'sqft'">
+                <label class="form-label small mb-1">Total Area (sq ft)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.sod.sqFtDirect" min="0" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Sq Ft per Pallet</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.sod.sqFtPerPallet" min="1" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Price per Pallet ($)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.sod.pricePerPallet" min="0" step="0.01" @focus="$event.target.select()" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Tile / Flooring inputs -->
+          <div x-show="calcTab === 'tile'">
+            <div class="btn-group btn-group-sm mb-2 w-100" role="group">
+              <button type="button" class="btn"
+                :class="calc.tile.mode === 'dimensions' ? 'btn-secondary' : 'btn-outline-secondary'"
+                @click="calc.tile.mode = 'dimensions'">
+                <i class="bi bi-arrows-angle-expand me-1"></i>Dimensions (L × W)
+              </button>
+              <button type="button" class="btn"
+                :class="calc.tile.mode === 'sqft' ? 'btn-secondary' : 'btn-outline-secondary'"
+                @click="calc.tile.mode = 'sqft'">
+                <i class="bi bi-bounding-box me-1"></i>Total Sq Ft
+              </button>
+            </div>
+            <div class="row g-2">
+              <div class="col-6" x-show="calc.tile.mode === 'dimensions'">
+                <label class="form-label small mb-1">Length (ft)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.tile.length" min="0" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6" x-show="calc.tile.mode === 'dimensions'">
+                <label class="form-label small mb-1">Width (ft)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.tile.width" min="0" @focus="$event.target.select()" />
+              </div>
+              <div class="col-12" x-show="calc.tile.mode === 'sqft'">
+                <label class="form-label small mb-1">Total Area (sq ft)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.tile.sqFtDirect" min="0" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Waste % (overage)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.tile.waste" min="0" max="50" step="1" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6">
+                <label class="form-label small mb-1">Price per Sq Ft ($)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.tile.pricePerSqFt" min="0" step="0.01" @focus="$event.target.select()" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Result row -->
+          <div class="border rounded p-2 mt-3 bg-light">
+            <div class="d-flex align-items-center justify-content-between gap-2">
+              <div>
+                <div class="text-muted small">Result</div>
+                <div class="fw-bold" x-text="calcResultLabel()"></div>
+              </div>
+              <button class="btn btn-success btn-sm flex-shrink-0"
+                @click="addFromCalculator()"
+                :disabled="!calcResult().qty">
+                <i class="bi bi-plus-circle me-1"></i>Add to Materials
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Custom confirm dialog (replaces window.confirm to avoid Electron keyboard focus loss) -->
   <div x-show="confirmMessage"
