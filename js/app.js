@@ -1147,12 +1147,15 @@ Any additional work beyond the services listed above may incur extra charges.`,
           { content: 'Start: ' + fmtDate(e.startDate), styles: { halign: 'right', textColor: GRAY, fontSize: 9 } }
         ]);
       }
-      if (e.completionDate) {
-        clientBody.push([
-          '',
-          { content: 'Est. Completion: ' + fmtDate(e.completionDate), styles: { halign: 'right', textColor: GRAY, fontSize: 9 } }
-        ]);
-      }
+      clientBody.push([
+        '',
+        {
+          content: e.completionDate
+            ? 'Est. Completion: ' + fmtDate(e.completionDate)
+            : 'Estimate valid for 30 days',
+          styles: { halign: 'right', textColor: GRAY, fontSize: 9 }
+        }
+      ]);
 
       doc.autoTable({
         startY: y, margin: { left: M, right: M }, tableWidth: CW,
