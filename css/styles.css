@@ -129,7 +129,7 @@ body {
 
 [x-cloak] { display: none !important; }
 
-.modal-overlay { display: flex; align-items: center; justify-content: center; }
+.modal-overlay { display: flex; align-items: flex-start; justify-content: center; padding-top: 8vh; }
 
 .drag-handle { cursor: grab; }
 .drag-handle:active { cursor: grabbing; }
