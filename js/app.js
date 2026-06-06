@@ -86,6 +86,7 @@ document.addEventListener('alpine:init', () => {
     currentView: 'estimator',
     settingsSaved: false,
     onboardingStep: 0,
+    onboardingTradeError: false,
     prefabPickerOpen: false,
     contactModalOpen: false,
     prefabPickerTrade: '',
@@ -107,6 +108,20 @@ document.addEventListener('alpine:init', () => {
 
     confirmMessage: '',
     confirmResolve: null,
+
+    rateModalOpen: false,
+    rateModalStars: 0,
+
+    colorPickerOpen: false,
+    colorPickerTarget: '',
+    colorPickerR: 0,
+    colorPickerG: 0,
+    colorPickerB: 0,
+
+    presetColors: [
+      '#1E3A5F','#3A5890','#2563EB','#0EA5E9','#0F766E','#16A34A','#15803D','#374151',
+      '#C99C2C','#EA580C','#DC2626','#7F1D1D','#6D28D9','#DB2777','#78716C','#111827',
+    ],
 
     calcModalOpen: false,
     calcTab: 'paint',
@@ -208,6 +223,24 @@ Any additional work beyond the services listed above may incur extra charges.`,
         this.onboardingStep = 1;
       }
 
+      if (localStorage.getItem('onboarding-complete') && this.isMobilePlatform()) {
+        const bootCount = (parseInt(localStorage.getItem('rateBootCount') || '0')) + 1;
+        localStorage.setItem('rateBootCount', bootCount);
+        const rateStatus = localStorage.getItem('rateStatus');
+        const rateSnoozeAt = parseInt(localStorage.getItem('rateSnoozeAt') || '0');
+        if (!rateStatus && bootCount >= 5) {
+          this.rateModalOpen = true;
+        } else if (rateStatus === 'snoozed' && bootCount >= rateSnoozeAt + 5) {
+          this.rateModalOpen = true;
+        } else if (rateStatus === 'low-rated') {
+          const rateLowRatedAt   = parseInt(localStorage.getItem('rateLowRatedAt')   || '0');
+          const rateLowRatedBoot = parseInt(localStorage.getItem('rateLowRatedBoot') || '0');
+          if (bootCount >= rateLowRatedBoot + 30 && Date.now() >= rateLowRatedAt + 30 * 24 * 60 * 60 * 1000) {
+            this.rateModalOpen = true;
+          }
+        }
+      }
+
       // Restore in-progress draft estimate
       const draft = localStorage.getItem('estimator-draft');
       if (draft) {
@@ -257,6 +290,20 @@ Any additional work beyond the services listed above may incur extra charges.`,
             } catch (_) {}
           }
         });
+      }
+
+      // Android WebView: keyboard silently fails to open on the very first input tap
+      // after a cold boot. Blur + refocus within the touchend handler (a user gesture)
+      // forces the IME to appear. Only needed once per session.
+      if (this.isMobilePlatform()) {
+        document.addEventListener('touchend', function fixFirstKeyboard(e) {
+          const el = e.target;
+          if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+            document.removeEventListener('touchend', fixFirstKeyboard);
+            el.blur();
+            requestAnimationFrame(() => el.focus());
+          }
+        }, { passive: true });
       }
     },
 
@@ -553,6 +600,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
     },
     selectTrade(id) {
       this.settings.selectedTrade = id;
+      this.onboardingTradeError = false;
       if (!this.settings.initializedTrades.includes(id)) {
         this.settings.initializedTrades.push(id);
         (QPE_DEFAULT_PREFABS[id] || []).forEach(item => {
@@ -948,6 +996,44 @@ Any additional work beyond the services listed above may incur extra charges.`,
       if (this.confirmResolve) this.confirmResolve(false);
       this.confirmMessage = '';
       this.confirmResolve = null;
+    },
+
+    rateModalSelect(stars) {
+      this.rateModalStars = stars;
+      const pkgId = 'com.sodamoney.quickprojectestimator';
+      if (stars === 5) {
+        window.open('market://details?id=' + pkgId, '_system');
+        localStorage.setItem('rateStatus', 'done');
+      } else {
+        window.open('https://docs.google.com/forms/d/e/1FAIpQLScWAC8tbAO1u6PAWeFp2PxMT9JhFLzml4oZ-wDLSe2jqCAb8A/viewform?usp=publish-editor', '_system');
+        localStorage.setItem('rateStatus', 'low-rated');
+        localStorage.setItem('rateLowRatedAt',   Date.now());
+        localStorage.setItem('rateLowRatedBoot', localStorage.getItem('rateBootCount') || '0');
+      }
+      this.rateModalOpen = false;
+    },
+
+    rateModalDismiss() {
+      const bootCount = parseInt(localStorage.getItem('rateBootCount') || '0');
+      localStorage.setItem('rateStatus', 'snoozed');
+      localStorage.setItem('rateSnoozeAt', bootCount);
+      this.rateModalOpen = false;
+    },
+
+    openColorPicker(target) {
+      this.colorPickerTarget = target;
+      const rgb = this.hexToRgb(this.settings[target] || '#000000');
+      this.colorPickerR = rgb[0];
+      this.colorPickerG = rgb[1];
+      this.colorPickerB = rgb[2];
+      this.colorPickerOpen = true;
+    },
+    colorPickerHex() {
+      return this.rgbToHex([this.colorPickerR, this.colorPickerG, this.colorPickerB]);
+    },
+    saveColorPicker() {
+      this.settings[this.colorPickerTarget] = this.colorPickerHex();
+      this.colorPickerOpen = false;
     },
 
     calcResult() {
