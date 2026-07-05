@@ -295,7 +295,10 @@ Any additional work beyond the services listed above may incur extra charges.`,
       // Android WebView: keyboard silently fails to open on the very first input tap
       // after a cold boot. Blur + refocus within the touchend handler (a user gesture)
       // forces the IME to appear. Only needed once per session.
-      if (this.isMobilePlatform()) {
+      // iOS doesn't have this bug, and the extra blur/refocus cycle can cause the
+      // page-zoom-on-focus workaround (styles.css @media (pointer: coarse)) to lose
+      // its race against WKWebView's own auto-zoom, so restrict this to Android.
+      if (window.Capacitor?.getPlatform() === 'android') {
         document.addEventListener('touchend', function fixFirstKeyboard(e) {
           const el = e.target;
           if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {

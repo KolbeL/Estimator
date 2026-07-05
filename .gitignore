@@ -1,6 +1,7 @@
 node_modules/
 www/
 *.pdf
+.DS_Store
 
 # Firebase config contains API keys — never commit
 js/firebase-config.js

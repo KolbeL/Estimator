@@ -144,13 +144,17 @@ body {
 
 /* ---- Mobile: enlarge focused inputs for easier reading ---- */
 @media (pointer: coarse) {
+  /* Font-size stays at 16px at all times (not just on focus): WKWebView on iOS
+     decides whether to zoom the page in based on the font-size in effect the
+     instant an input gains focus, and a :focus-only bump can lose that race
+     depending on how focus was triggered (JS refocus, drag handlers, etc). */
   .form-control,
   .form-control-sm {
-    transition: padding 0.15s ease, font-size 0.15s ease, min-height 0.15s ease, box-shadow 0.15s ease;
+    font-size: 1rem !important;
+    transition: padding 0.15s ease, min-height 0.15s ease, box-shadow 0.15s ease;
   }
   .form-control:focus,
   .form-control-sm:focus {
-    font-size: 1rem !important;
     min-height: 48px !important;
     padding: 10px 14px !important;
     position: relative;
