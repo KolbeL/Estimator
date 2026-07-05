@@ -1474,16 +1474,10 @@ Any additional work beyond the services listed above may incur extra charges.`,
 
       if (window.Capacitor?.isNativePlatform()) {
         const base64 = doc.output('datauristring').split(',')[1];
-        const { Filesystem } = window.Capacitor.Plugins;
-        try {
-          await Filesystem.writeFile({ path: fileName, data: base64, directory: 'DOCUMENTS', recursive: true });
-          alert(`PDF saved!\n\n"${fileName}"\n\nFind it in your Files app under Documents.`);
-        } catch (_) {
-          await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
-          const { uri } = await Filesystem.getUri({ path: fileName, directory: 'CACHE' });
-          const { Share } = window.Capacitor.Plugins;
-          await Share.share({ title: fileName, url: uri, dialogTitle: 'Save your estimate PDF' });
-        }
+        const { Filesystem, Share } = window.Capacitor.Plugins;
+        await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
+        const { uri } = await Filesystem.getUri({ path: fileName, directory: 'CACHE' });
+        await Share.share({ title: fileName, url: uri, dialogTitle: 'Save your estimate PDF' });
       } else {
         doc.save(fileName);
       }
