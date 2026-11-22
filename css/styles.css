@@ -211,3 +211,9 @@ body {
 .color-range:focus::-webkit-slider-thumb {
   box-shadow: 0 0 0 3px rgba(255,255,255,0.9), 0 0 0 5px rgba(0,0,0,0.3);
 }
+
+/* Materials / invoice cost rows: uniform Qty, price and line-total boxes so rows line up.
+   Qty fits 5 characters; price fits 99999.99 (a 5-digit number with 2 decimals). */
+.qty-box        { width: calc(5ch + 1.2rem); flex: 0 0 auto; }
+.price-box      { width: calc(8ch + 1.2rem); flex: 0 0 auto; }
+.line-total-box { min-width: 5.1rem; }

@@ -82,6 +82,15 @@ const QPE_DEFAULT_PREFABS = {
 };
 
 document.addEventListener('alpine:init', () => {
+  // x-money="model": always display a currency input with 2 decimals (2.9 -> 2.90).
+  // Only reformats while the field is not focused so typing is never interrupted.
+  Alpine.directive('money', (el, { expression }, { evaluateLater, effect }) => {
+    const getValue = evaluateLater(expression);
+    const fmt = (v) => (v === '' || v == null || isNaN(+v)) ? '' : (+v).toFixed(2);
+    effect(() => getValue(v => { if (document.activeElement !== el) el.value = fmt(v); }));
+    el.addEventListener('blur', () => { el.value = fmt(el.value); });
+  });
+
   Alpine.data('estimatorApp', () => ({
     currentView: 'estimator',
     settingsSaved: false,
@@ -98,6 +107,9 @@ document.addEventListener('alpine:init', () => {
     syncStatus: '',
     showCreateAccount: false,
     firebaseReady: false,
+
+    invoiceModalOpen: false,
+    invoiceDraft: null,
 
     openModal: false,
     openTab: 'pdf',
@@ -141,6 +153,7 @@ document.addEventListener('alpine:init', () => {
       photos: [],
       startDate: '',
       completionDate: '',
+      invoice: null, // saved invoice for this bid: { invoiceNumber, invoiceDate, notes, deposit, costs }
       costs: {
         materials: [],
         machinery: [],
@@ -201,15 +214,17 @@ Any additional work beyond the services listed above may incur extra charges.`,
           this.settings.initializedTrades.push(item.tradeId);
         }
       });
-      // Migrate any saved green primary or yellow/orange accent to new blue/gold defaults
-      const isGreenish   = (h) => { const c = parseInt((h||'').replace('#','').slice(2,4),16); const r = parseInt((h||'').replace('#','').slice(0,2),16); return c > r + 30; };
-      const isYellowish  = (h) => { const r = parseInt((h||'').replace('#','').slice(0,2),16); const b = parseInt((h||'').replace('#','').slice(4,6),16); return r > 180 && b < 80; };
-      if (isGreenish(this.settings.primaryColor)) {
-        this.settings.primaryColor = '#3A5890';
-        this.settings.titleColor   = '#3A5890';
-      }
-      if (isYellowish(this.settings.accentColor)) {
-        this.settings.accentColor = '#C99C2C';
+      // Migrate users still on the ORIGINAL default colors (green primary / amber accent) to the
+      // current blue/gold defaults. Match the old defaults exactly so a green or orange the user
+      // picked on purpose is never reverted.
+      const sameHex = (a, b) => (a || '').toLowerCase() === b;
+      let colorsMigrated = false;
+      if (sameHex(this.settings.primaryColor, '#2e7d32')) { this.settings.primaryColor = '#3A5890'; colorsMigrated = true; }
+      if (sameHex(this.settings.titleColor,   '#2e7d32')) { this.settings.titleColor   = '#3A5890'; colorsMigrated = true; }
+      if (sameHex(this.settings.accentColor,  '#f9a825')) { this.settings.accentColor  = '#C99C2C'; colorsMigrated = true; }
+      if (colorsMigrated) {
+        // Persist so the early <head> theme script doesn't flash the old colors on the next launch
+        try { localStorage.setItem('estimator-settings', JSON.stringify(this.settings)); } catch (_) {}
       }
       this.applyTheme();
       this.applyDarkMode();
@@ -718,24 +733,25 @@ Any additional work beyond the services listed above may incur extra charges.`,
     },
 
     // --- Calculations ---
-    materialsTotal() {
-      return this.estimate.costs.materials.reduce((s, m) => s + (+(m.qty) || 0) * (+(m.unitPrice) || 0), 0);
+    // Each total takes an optional costs object (defaults to the bid's costs) so the invoice can reuse them.
+    materialsTotal(c = this.estimate.costs) {
+      return c.materials.reduce((s, m) => s + (+(m.qty) || 0) * (+(m.unitPrice) || 0), 0);
     },
-    machineryTotal() {
-      return this.estimate.costs.machinery.reduce((s, m) => s + (+(m.duration) || 0) * (+(m.rate) || 0), 0);
+    machineryTotal(c = this.estimate.costs) {
+      return c.machinery.reduce((s, m) => s + (+(m.duration) || 0) * (+(m.rate) || 0), 0);
     },
-    laborTotal() {
-      return (+(this.estimate.costs.laborDays) || 0) * (+(this.estimate.costs.laborWorkers) || 1) * (+(this.estimate.costs.laborDailyRate) || 0);
+    laborTotal(c = this.estimate.costs) {
+      return (+(c.laborDays) || 0) * (+(c.laborWorkers) || 1) * (+(c.laborDailyRate) || 0);
     },
-    miscTotal() {
-      return this.estimate.costs.misc.reduce((s, m) => s + (+(m.amount) || 0), 0);
+    miscTotal(c = this.estimate.costs) {
+      return c.misc.reduce((s, m) => s + (+(m.amount) || 0), 0);
     },
-    taxAmount() {
+    taxAmount(c = this.estimate.costs) {
       const rate = +(this.settings.taxRate) || 0;
-      return (this.materialsTotal() + this.machineryTotal()) * (rate / 100);
+      return (this.materialsTotal(c) + this.machineryTotal(c)) * (rate / 100);
     },
-    grandTotal() {
-      return this.materialsTotal() + this.machineryTotal() + this.taxAmount() + this.laborTotal() + this.miscTotal();
+    grandTotal(c = this.estimate.costs) {
+      return this.materialsTotal(c) + this.machineryTotal(c) + this.taxAmount(c) + this.laborTotal(c) + this.miscTotal(c);
     },
 
     fmt(n) { return '$' + (+(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
@@ -1093,7 +1109,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
         customerName: '', customerAddress: '',
         estimateDate: new Date().toISOString().split('T')[0],
         projectName: '', scopeOfWork: [], photos: [],
-        startDate: '', completionDate: ''
+        startDate: '', completionDate: '', invoice: null
       });
       // Mutate costs in-place to preserve Alpine's reactive Proxy
       this.estimate.costs.materials = [];
@@ -1109,10 +1125,75 @@ Any additional work beyond the services listed above may incur extra charges.`,
       this._resetEstimate();
     },
 
+    // --- Invoice (stored on the estimate as estimate.invoice) ---
+    _blankInvoiceCosts() {
+      return { materials: [], machinery: [], laborDays: 1.0, laborWorkers: 1, laborDailyRate: 400, misc: [] };
+    },
+    _cloneCosts(costs) {
+      const c = JSON.parse(JSON.stringify(costs || this._blankInvoiceCosts()));
+      return {
+        materials: c.materials || [], machinery: c.machinery || [],
+        laborDays: c.laborDays ?? 1.0, laborWorkers: c.laborWorkers ?? 1,
+        laborDailyRate: c.laborDailyRate ?? 400, misc: c.misc || []
+      };
+    },
+    openInvoiceModal() {
+      const e = this.estimate;
+      if (!e.customerName.trim()) {
+        alert('Please enter a customer name before creating an invoice.');
+        return;
+      }
+      if (e.invoice) {
+        this.invoiceDraft = {
+          invoiceNumber: e.invoice.invoiceNumber || '',
+          invoiceDate:   e.invoice.invoiceDate   || new Date().toISOString().split('T')[0],
+          notes:         e.invoice.notes ?? '',
+          deposit:       e.invoice.deposit ?? 0,
+          costs:         this._cloneCosts(e.invoice.costs)
+        };
+      } else {
+        this.invoiceDraft = this._newInvoiceDraft();
+      }
+      this.invoiceModalOpen = true;
+    },
+    _newInvoiceDraft() {
+      const today = new Date().toISOString().split('T')[0];
+      return {
+        invoiceNumber: 'INV-' + today.replace(/-/g, ''),
+        invoiceDate:   today,
+        notes:         this.settings.termsAndConditions || '',
+        deposit:       0,
+        costs:         this._cloneCosts(this.estimate.costs)
+      };
+    },
+    // Invoice total minus any deposit already received
+    invoiceBalanceDue(d) {
+      return this.grandTotal(d.costs) - (+(d.deposit) || 0);
+    },
+    async resetInvoiceToBid() {
+      if (!await this._confirm('Reset all invoice costs back to the bid amounts? Your invoice changes will be lost.')) return;
+      this.invoiceDraft.costs = this._cloneCosts(this.estimate.costs);
+    },
+    invAddMaterial()  { this.invoiceDraft.costs.materials.push({ name: '', qty: 0, unitPrice: 0 }); },
+    invAddMachinery() { this.invoiceDraft.costs.machinery.push({ name: '', duration: 1, rate: 0 }); },
+    invAddMisc()      { this.invoiceDraft.costs.misc.push({ description: '', amount: 0 }); },
+    async saveAndExportInvoice() {
+      if (!this.invoiceDraft) return;
+      // Save the invoice as related data on the bid (persists via draft, cloud save, and PDF metadata)
+      this.estimate.invoice = JSON.parse(JSON.stringify(this.invoiceDraft));
+      this._saveDraft();
+      this.invoiceModalOpen = false;
+      this.invoiceDraft = null;
+      await this.generatePDF('invoice');
+    },
+
     // --- PDF Generation ---
-    async generatePDF() {
+    async generatePDF(mode = 'bid') {
       const e = this.estimate;
       const s = this.settings;
+      const isInvoice = mode === 'invoice' && !!e.invoice;
+      const inv = isInvoice ? e.invoice : null;
+      const c = isInvoice ? inv.costs : e.costs;
 
       if (!e.customerName.trim()) {
         alert('Please enter a customer name before generating the PDF.');
@@ -1123,7 +1204,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
       const doc = new jsPDF({ unit: 'pt', format: 'letter' });
       const subjectData = { ...this.estimate, photos: [] }; // photos are in the PDF itself, not metadata
       doc.setProperties({
-        title:   `Estimate – ${e.customerName}`,
+        title:   `${isInvoice ? 'Invoice' : 'Estimate'} – ${e.customerName}`,
         author:  s.companyName || '',
         subject: JSON.stringify(subjectData)
       });
@@ -1146,10 +1227,13 @@ Any additional work beyond the services listed above may incur extra charges.`,
         ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
         : '';
 
+      // Table header cell with explicit alignment so headers line up with their column data
+      const hc = (content, halign) => ({ content, styles: { halign } });
+
       const taxRate = +(s.taxRate) || 0;
-      const matSub  = this.materialsTotal();
+      const matSub  = this.materialsTotal(c);
       const matTax  = matSub  * taxRate / 100;
-      const machSub = this.machineryTotal();
+      const machSub = this.machineryTotal(c);
       const machTax = machSub * taxRate / 100;
 
       let y = M;
@@ -1205,7 +1289,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
       doc.setFontSize(22);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...TITLE_COLOR);
-      doc.text('Project Estimate', M, y + 20);
+      doc.text(isInvoice ? 'Invoice' : 'Project Estimate', M, y + 20);
       if (e.projectName) {
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
@@ -1217,15 +1301,20 @@ Any additional work beyond the services listed above may incur extra charges.`,
       // ---- Client / date block ----
       const clientBody = [
         [
-          { content: 'Prepared For', styles: { fontStyle: 'bold', fontSize: 8, textColor: GRAY } },
-          { content: 'Date', styles: { fontStyle: 'bold', fontSize: 8, textColor: GRAY, halign: 'right' } }
+          { content: isInvoice ? 'Bill To' : 'Prepared For', styles: { fontStyle: 'bold', fontSize: 8, textColor: GRAY } },
+          { content: isInvoice ? 'Invoice Date' : 'Date', styles: { fontStyle: 'bold', fontSize: 8, textColor: GRAY, halign: 'right' } }
         ],
         [
           { content: e.customerName, styles: { fontStyle: 'bold', fontSize: 12 } },
-          { content: fmtDate(e.estimateDate), styles: { halign: 'right', fontSize: 10 } }
+          { content: fmtDate(isInvoice ? inv.invoiceDate : e.estimateDate), styles: { halign: 'right', fontSize: 10 } }
         ]
       ];
-      if (e.customerAddress) {
+      if (isInvoice) {
+        clientBody.push([
+          { content: e.customerAddress || '', styles: { textColor: GRAY, fontSize: 9 } },
+          { content: inv.invoiceNumber ? 'Invoice #: ' + inv.invoiceNumber : '', styles: { halign: 'right', textColor: GRAY, fontSize: 9 } }
+        ]);
+      } else if (e.customerAddress) {
         clientBody.push([
           { content: e.customerAddress, styles: { textColor: GRAY, fontSize: 9 } },
           { content: e.startDate ? 'Start: ' + fmtDate(e.startDate) : '', styles: { halign: 'right', textColor: GRAY, fontSize: 9 } }
@@ -1236,15 +1325,17 @@ Any additional work beyond the services listed above may incur extra charges.`,
           { content: 'Start: ' + fmtDate(e.startDate), styles: { halign: 'right', textColor: GRAY, fontSize: 9 } }
         ]);
       }
-      clientBody.push([
-        '',
-        {
-          content: e.completionDate
-            ? 'Est. Completion: ' + fmtDate(e.completionDate)
-            : 'Estimate valid for 30 days',
-          styles: { halign: 'right', textColor: GRAY, fontSize: 9 }
-        }
-      ]);
+      if (!isInvoice) {
+        clientBody.push([
+          '',
+          {
+            content: e.completionDate
+              ? 'Est. Completion: ' + fmtDate(e.completionDate)
+              : 'Estimate valid for 30 days',
+            styles: { halign: 'right', textColor: GRAY, fontSize: 9 }
+          }
+        ]);
+      }
 
       doc.autoTable({
         startY: y, margin: { left: M, right: M }, tableWidth: CW,
@@ -1273,7 +1364,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
       }
 
       // ---- Materials ----
-      if (e.costs.materials.length > 0) {
+      if (c.materials.length > 0) {
         const foot = [[
           { content: 'Subtotal', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
           { content: money(matSub), styles: { halign: 'right', fontStyle: 'bold' } }
@@ -1291,8 +1382,8 @@ Any additional work beyond the services listed above may incur extra charges.`,
         }
         doc.autoTable({
           startY: y, margin: { left: M, right: M }, tableWidth: CW, showFoot: 'lastPage',
-          head: [['Materials', 'Qty', 'Unit Price', 'Line Total']],
-          body: e.costs.materials.map(m => [
+          head: [['Materials', hc('Qty', 'center'), hc('Unit Price', 'right'), hc('Line Total', 'right')]],
+          body: c.materials.map(m => [
             m.name || '',
             { content: m.qty,                                        styles: { halign: 'center' } },
             { content: money(m.unitPrice),                           styles: { halign: 'right' } },
@@ -1308,7 +1399,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
       }
 
       // ---- Machinery ----
-      if (e.costs.machinery.length > 0) {
+      if (c.machinery.length > 0) {
         const foot = [[
           { content: 'Subtotal', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
           { content: money(machSub), styles: { halign: 'right', fontStyle: 'bold' } }
@@ -1326,8 +1417,8 @@ Any additional work beyond the services listed above may incur extra charges.`,
         }
         doc.autoTable({
           startY: y, margin: { left: M, right: M }, tableWidth: CW, showFoot: 'lastPage',
-          head: [['Machinery', 'Duration', 'Daily Rate', 'Line Total']],
-          body: e.costs.machinery.map(m => [
+          head: [['Machinery', hc('Duration', 'center'), hc('Daily Rate', 'right'), hc('Line Total', 'right')]],
+          body: c.machinery.map(m => [
             m.name || '',
             { content: m.duration + ' day(s)',                       styles: { halign: 'center' } },
             { content: money(m.rate) + '/day',                       styles: { halign: 'right' } },
@@ -1345,13 +1436,13 @@ Any additional work beyond the services listed above may incur extra charges.`,
       // ---- Labor ----
       doc.autoTable({
         startY: y, margin: { left: M, right: M }, tableWidth: CW,
-        head: [['Labor', 'Days', 'Workers', 'Rate/Laborer', 'Total']],
+        head: [['Labor', hc('Days', 'center'), hc('Workers', 'center'), hc('Rate/Laborer', 'right'), hc('Total', 'right')]],
         body: [[
           'Labor',
-          { content: e.costs.laborDays,                                   styles: { halign: 'center' } },
-          { content: e.costs.laborWorkers ?? 1,                           styles: { halign: 'center' } },
-          { content: money(e.costs.laborDailyRate) + '/day',              styles: { halign: 'right' } },
-          { content: money(this.laborTotal()),                             styles: { halign: 'right', fontStyle: 'bold' } }
+          { content: c.laborDays,                                   styles: { halign: 'center' } },
+          { content: c.laborWorkers ?? 1,                           styles: { halign: 'center' } },
+          { content: money(c.laborDailyRate) + '/day',              styles: { halign: 'right' } },
+          { content: money(this.laborTotal(c)),                             styles: { halign: 'right', fontStyle: 'bold' } }
         ]],
         headStyles: { fillColor: GREEN, textColor: 255, fontSize: 10, fontStyle: 'bold' },
         bodyStyles: { fontSize: 10 },
@@ -1360,17 +1451,17 @@ Any additional work beyond the services listed above may incur extra charges.`,
       y = doc.lastAutoTable.finalY + 14;
 
       // ---- Misc ----
-      if (e.costs.misc.length > 0) {
+      if (c.misc.length > 0) {
         doc.autoTable({
           startY: y, margin: { left: M, right: M }, tableWidth: CW, showFoot: 'lastPage',
-          head: [['Miscellaneous', 'Amount']],
-          body: e.costs.misc.map(m => [
+          head: [['Miscellaneous', hc('Amount', 'right')]],
+          body: c.misc.map(m => [
             m.description || '',
             { content: money(m.amount), styles: { halign: 'right', fontStyle: 'bold' } }
           ]),
           foot: [[
             { content: 'Subtotal', styles: { halign: 'right', fontStyle: 'bold' } },
-            { content: money(this.miscTotal()), styles: { halign: 'right', fontStyle: 'bold' } }
+            { content: money(this.miscTotal(c)), styles: { halign: 'right', fontStyle: 'bold' } }
           ]],
           headStyles: { fillColor: GREEN, textColor: GREEN_TEXT, fontSize: 10, fontStyle: 'bold' },
           footStyles: { fillColor: LT_GREEN, textColor: [30, 30, 30], fontSize: 10 },
@@ -1380,13 +1471,31 @@ Any additional work beyond the services listed above may incur extra charges.`,
         y = doc.lastAutoTable.finalY + 14;
       }
 
-      // ---- Grand Total ----
+      // ---- Grand Total (invoices: optionally show the deposit received and the balance due) ----
+      const invTotal = this.grandTotal(c);
+      const deposit  = isInvoice ? (+(inv.deposit) || 0) : 0;
+      const moneySigned = (n) => n < 0 ? '-' + money(-n) : money(n);
+      if (deposit > 0) {
+        doc.autoTable({
+          startY: y, margin: { left: M, right: M }, tableWidth: CW,
+          theme: 'plain',
+          body: [
+            [ { content: 'Invoice Total' },
+              { content: money(invTotal), styles: { halign: 'right', fontStyle: 'bold' } } ],
+            [ { content: 'Less: Deposit Received' },
+              { content: '-' + money(deposit), styles: { halign: 'right', fontStyle: 'bold', textColor: AMBER } } ]
+          ],
+          bodyStyles: { fillColor: VLT, textColor: [30, 30, 30], fontSize: 11, cellPadding: { top: 6, bottom: 6, left: 12, right: 12 } },
+          columnStyles: { 0: { cellWidth: CW*0.7 }, 1: { cellWidth: CW*0.3 } }
+        });
+        y = doc.lastAutoTable.finalY;
+      }
       doc.autoTable({
         startY: y, margin: { left: M, right: M }, tableWidth: CW,
         theme: 'plain',
         body: [[
-          { content: 'TOTAL ESTIMATE' },
-          { content: money(this.grandTotal()), styles: { halign: 'right', textColor: GREEN_TEXT } }
+          { content: isInvoice ? (deposit > 0 ? 'BALANCE DUE' : 'TOTAL DUE') : 'TOTAL ESTIMATE' },
+          { content: moneySigned(invTotal - deposit), styles: { halign: 'right', textColor: GREEN_TEXT } }
         ]],
         bodyStyles: { fillColor: GREEN, textColor: GREEN_TEXT, fontStyle: 'bold', fontSize: 13, cellPadding: { top: 10, bottom: 10, left: 12, right: 12 } },
         columnStyles: { 0: { cellWidth: CW*0.7 }, 1: { cellWidth: CW*0.3 } }
@@ -1395,7 +1504,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
 
       // ---- Project Photos ----
       const photosData = (await Promise.all(
-        (e.photos || [])
+        (isInvoice ? [] : (e.photos || [])) // invoices don't include project photos
           .filter(p => p.dataUrl || p.url)
           .map(async p => {
             if (p.dataUrl) return p;
@@ -1450,7 +1559,8 @@ Any additional work beyond the services listed above may incur extra charges.`,
       }
 
       // ---- Terms & Conditions ----
-      if (s.termsAndConditions) {
+      const termsText = isInvoice ? (inv.notes || '') : s.termsAndConditions;
+      if (termsText) {
         if (y > PH - 120) { doc.addPage(); y = M; }
         doc.setDrawColor(...GREEN);
         doc.setLineWidth(1.5);
@@ -1459,25 +1569,27 @@ Any additional work beyond the services listed above may incur extra charges.`,
         doc.setFontSize(9);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(...GREEN);
-        doc.text('TERMS & CONDITIONS', M, y);
+        doc.text(isInvoice ? 'TERMS & NOTES' : 'TERMS & CONDITIONS', M, y);
         y += 13;
         doc.setFontSize(8);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(80, 80, 80);
-        doc.text(doc.splitTextToSize(s.termsAndConditions, CW), M, y);
+        doc.text(doc.splitTextToSize(termsText, CW), M, y);
       }
 
       // ---- Save ----
       const safeName    = e.customerName.replace(/[^a-z0-9]/gi, '_');
       const safeProject = e.projectName ? '_' + e.projectName.replace(/[^a-z0-9]/gi, '_') : '';
-      const fileName = `${safeName}${safeProject}_${e.estimateDate || 'draft'}.pdf`;
+      const fileName = isInvoice
+        ? `${safeName}${safeProject}_Invoice_${inv.invoiceDate || 'draft'}.pdf`
+        : `${safeName}${safeProject}_${e.estimateDate || 'draft'}.pdf`;
 
       if (window.Capacitor?.isNativePlatform()) {
         const base64 = doc.output('datauristring').split(',')[1];
         const { Filesystem, Share } = window.Capacitor.Plugins;
         await Filesystem.writeFile({ path: fileName, data: base64, directory: 'CACHE' });
         const { uri } = await Filesystem.getUri({ path: fileName, directory: 'CACHE' });
-        await Share.share({ title: fileName, url: uri, dialogTitle: 'Save your estimate PDF' });
+        await Share.share({ title: fileName, url: uri, dialogTitle: isInvoice ? 'Save your invoice PDF' : 'Save your estimate PDF' });
       } else {
         doc.save(fileName);
       }

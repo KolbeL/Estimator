@@ -8,7 +8,7 @@
   <style>[x-cloak]{display:none!important}</style>
   <link rel="stylesheet" href="vendor/bootstrap.min.css" />
   <link rel="stylesheet" href="vendor/bootstrap-icons.min.css" />
-  <link rel="stylesheet" href="css/styles.css?v=18" />
+  <link rel="stylesheet" href="css/styles.css?v=22" />
   <script>
   (function(){
     try {
@@ -48,7 +48,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase.js"></script>
-  <script src="js/app.js?v=14"></script>
+  <script src="js/app.js?v=18"></script>
   <script defer src="vendor/alpine.min.js"></script>
 </head>
 <body x-data="estimatorApp()" x-init="init()" x-cloak>
@@ -585,12 +585,12 @@
                     <input type="text" class="form-control form-control-sm" x-model="m.name" :placeholder="tradePlaceholders().material" spellcheck="true" autocorrect="on" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" />
                   </div>
                   <div class="col-12 col-sm-auto">
-                    <div class="d-flex align-items-center gap-1 justify-content-end">
+                    <div class="d-flex align-items-center gap-2 justify-content-end">
                       <span class="text-muted flex-shrink-0" style="font-size:0.75rem">Qty</span>
-                      <input type="number" class="form-control form-control-sm" style="width:50px" x-model.number="m.qty" min="0" step="1" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" />
+                      <input type="number" class="form-control form-control-sm qty-box" x-model.number="m.qty" min="0" step="1" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" />
                       <span class="text-muted flex-shrink-0" style="font-size:0.75rem">Ea.</span>
-                      <input type="number" class="form-control form-control-sm text-end" style="width:70px" x-model.number="m.unitPrice" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" />
-                      <span class="fw-semibold small flex-shrink-0 ms-1" x-text="fmt((+m.qty||0)*(+m.unitPrice||0))"></span>
+                      <input type="number" class="form-control form-control-sm text-end price-box" x-model.number="m.unitPrice" x-money="m.unitPrice" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" />
+                      <span class="fw-semibold small flex-shrink-0 text-end line-total-box" x-text="fmt((+m.qty||0)*(+m.unitPrice||0))"></span>
                       <button class="btn btn-outline-danger btn-sm flex-shrink-0" @click="removeMaterial(i)">
                         <i class="bi bi-trash"></i>
                       </button>
@@ -654,7 +654,7 @@
               <tr>
                 <td><input type="text" class="form-control form-control-sm" x-model="m.name" placeholder="Excavator" spellcheck="true" autocorrect="on" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
                 <td><input type="number" class="form-control form-control-sm" x-model.number="m.duration" min="0" step="0.5" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
-                <td><input type="number" class="form-control form-control-sm text-end" x-model.number="m.rate" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
+                <td><input type="number" class="form-control form-control-sm text-end" x-model.number="m.rate" x-money="m.rate" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
                 <td class="fw-semibold small text-end" x-text="fmt((+m.duration||0)*(+m.rate||0))"></td>
                 <td>
                   <button class="btn btn-outline-danger btn-sm p-1" @click="removeMachinery(i)">
@@ -729,7 +729,7 @@
             <div class="input-group">
               <span class="input-group-text">$</span>
               <input type="number" class="form-control" style="max-width:130px"
-                x-model.number="estimate.costs.laborDailyRate" min="0" step="0.01" @focus="$event.target.select()" />
+                x-model.number="estimate.costs.laborDailyRate" x-money="estimate.costs.laborDailyRate" min="0" step="0.01" @focus="$event.target.select()" />
             </div>
             <div class="form-text">Per Worker</div>
           </div>
@@ -768,7 +768,7 @@
               <tr>
                 <td><input type="text" class="form-control form-control-sm" x-model="m.description"
                   placeholder="Permit fees, dump charges…" spellcheck="true" autocorrect="on" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
-                <td><input type="number" class="form-control form-control-sm text-end" x-model.number="m.amount" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
+                <td><input type="number" class="form-control form-control-sm text-end" x-model.number="m.amount" x-money="m.amount" min="0" step="0.01" @focus="tableInputFocus($event)" @blur="tableInputBlur($event)" /></td>
                 <td>
                   <button class="btn btn-outline-danger btn-sm p-1" @click="removeMisc(i)">
                     <i class="bi bi-trash"></i>
@@ -817,33 +817,36 @@
     <!-- Grand Total + Actions -->
     <div class="card mb-5 total-bar">
       <div class="card-body py-3 px-4">
-        <div class="row align-items-center">
-          <div class="col">
-            <div class="small opacity-75 mb-1">GRAND TOTAL</div>
-            <div class="fw-bold fs-3" x-text="fmt(grandTotal())"></div>
+        <div class="d-flex justify-content-between align-items-start mb-1">
+          <div class="small opacity-75">GRAND TOTAL</div>
+          <button class="btn btn-light btn-sm" @click="clearEstimate()">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Clear
+          </button>
+        </div>
+        <div class="fw-bold fs-3 mb-2" x-text="fmt(grandTotal())"></div>
+        <div class="d-flex align-items-center flex-wrap gap-2">
+          <div class="d-flex justify-content-between gap-2 flex-nowrap w-100">
+            <button class="btn btn-warning fw-bold text-nowrap" @click="generatePDF('bid')">
+              <i class="bi bi-file-earmark-pdf me-1"></i>Export Bid
+            </button>
+            <button class="btn btn-warning fw-bold text-nowrap" @click="openInvoiceModal()">
+              <i class="bi bi-receipt-cutoff me-1"></i>Export Invoice
+            </button>
           </div>
-          <div class="col-auto d-flex align-items-center gap-2 flex-wrap row-gap-2">
-            <button class="btn btn-light btn-sm" @click="clearEstimate()">
-              <i class="bi bi-arrow-counterclockwise me-1"></i>Clear
+          <div x-show="authUser && firebaseReady" style="display:flex; align-items:center; gap:.5rem;">
+            <span x-show="cloudSaveStatus === 'saved'" class="text-success small fw-semibold">
+              <i class="bi bi-cloud-check me-1"></i>Saved!
+            </span>
+            <span x-show="cloudSaveStatus === 'error'" class="text-danger small fw-semibold">
+              <i class="bi bi-exclamation-circle me-1"></i>Save failed
+            </span>
+            <button class="btn btn-primary fw-bold" @click="saveEstimateToCloud()"
+              :disabled="cloudSaveStatus === 'saving'">
+              <span x-show="cloudSaveStatus === 'saving'"
+                class="spinner-border spinner-border-sm me-1" role="status"></span>
+              <i x-show="cloudSaveStatus !== 'saving'" class="bi bi-cloud-upload me-1"></i>
+              Save to Cloud
             </button>
-            <button class="btn btn-warning fw-bold" @click="generatePDF()">
-              <i class="bi bi-file-earmark-pdf me-1"></i>Generate PDF
-            </button>
-            <div x-show="authUser && firebaseReady" style="display:flex; align-items:center; gap:.5rem;">
-              <span x-show="cloudSaveStatus === 'saved'" class="text-success small fw-semibold">
-                <i class="bi bi-cloud-check me-1"></i>Saved!
-              </span>
-              <span x-show="cloudSaveStatus === 'error'" class="text-danger small fw-semibold">
-                <i class="bi bi-exclamation-circle me-1"></i>Save failed
-              </span>
-              <button class="btn btn-primary fw-bold" @click="saveEstimateToCloud()"
-                :disabled="cloudSaveStatus === 'saving'">
-                <span x-show="cloudSaveStatus === 'saving'"
-                  class="spinner-border spinner-border-sm me-1" role="status"></span>
-                <i x-show="cloudSaveStatus !== 'saving'" class="bi bi-cloud-upload me-1"></i>
-                Save to Cloud
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -1199,6 +1202,162 @@
   </div>
   <!-- end trade settings view -->
 
+  <!-- Invoice Modal: edit costs for this invoice, then save to the bid + export -->
+  <div x-show="invoiceModalOpen"
+    class="position-fixed top-0 start-0 w-100 h-100 modal-overlay"
+    style="background:rgba(0,0,0,0.5); z-index:1050;"
+    @click.self="invoiceModalOpen = false">
+    <div class="card shadow-lg mx-3 d-flex flex-column"
+      style="width:100%; max-width:640px; max-height:92vh;">
+      <div class="card-header bg-primary-theme d-flex justify-content-between align-items-center py-2">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-receipt-cutoff me-1"></i>Export Invoice</h6>
+        <button @click="invoiceModalOpen = false" class="btn p-0 lh-1" style="color:inherit; opacity:.8; font-size:1.2rem;">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <template x-if="invoiceDraft">
+        <div class="d-flex flex-column overflow-hidden">
+          <div class="overflow-auto p-3">
+            <p class="text-muted small mb-3">
+              Change any amount or add new cost lines for this invoice. Your bid is not changed — the invoice is saved with it.
+            </p>
+
+            <div class="row g-2 mb-3">
+              <div class="col-7">
+                <label class="form-label small fw-semibold mb-1">Invoice #</label>
+                <input type="text" class="form-control form-control-sm" x-model="invoiceDraft.invoiceNumber" />
+              </div>
+              <div class="col-5">
+                <label class="form-label small fw-semibold mb-1">Invoice Date</label>
+                <input type="date" class="form-control form-control-sm" x-model="invoiceDraft.invoiceDate" />
+              </div>
+            </div>
+
+            <!-- Materials -->
+            <h6 class="small fw-bold text-uppercase text-muted mb-2"><i class="bi bi-box-seam me-1"></i>Materials</h6>
+            <div x-show="invoiceDraft.costs.materials.length === 0" class="text-muted small mb-2">None.</div>
+            <template x-for="(m, i) in invoiceDraft.costs.materials" :key="'im'+i">
+              <div class="row g-1 align-items-center mb-2">
+                <div class="col-12 col-sm">
+                  <input type="text" class="form-control form-control-sm" x-model="m.name" placeholder="Material" spellcheck="true" autocorrect="on" />
+                </div>
+                <div class="col-12 col-sm-auto">
+                  <div class="d-flex align-items-center gap-1 justify-content-end">
+                    <span class="text-muted flex-shrink-0" style="font-size:0.75rem">Qty</span>
+                    <input type="number" class="form-control form-control-sm qty-box" x-model.number="m.qty" min="0" step="1" @focus="tableInputFocus($event)" />
+                    <span class="text-muted flex-shrink-0" style="font-size:0.75rem">Ea.</span>
+                    <input type="number" class="form-control form-control-sm text-end price-box" x-model.number="m.unitPrice" x-money="m.unitPrice" min="0" step="0.01" @focus="tableInputFocus($event)" />
+                    <span class="fw-semibold small flex-shrink-0 text-end line-total-box" x-text="fmt((+m.qty||0)*(+m.unitPrice||0))"></span>
+                    <button class="btn btn-outline-danger btn-sm flex-shrink-0 p-1" @click="invoiceDraft.costs.materials.splice(i, 1)"><i class="bi bi-trash"></i></button>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <button class="btn btn-outline-secondary btn-sm mb-3" @click="invAddMaterial()"><i class="bi bi-plus-circle me-1"></i>Add Material</button>
+
+            <!-- Machinery -->
+            <h6 class="small fw-bold text-uppercase text-muted mb-2"><i class="bi bi-truck me-1"></i>Machinery Rentals</h6>
+            <div x-show="invoiceDraft.costs.machinery.length === 0" class="text-muted small mb-2">None.</div>
+            <template x-for="(m, i) in invoiceDraft.costs.machinery" :key="'ik'+i">
+              <div class="row g-1 align-items-center mb-2">
+                <div class="col-12 col-sm">
+                  <input type="text" class="form-control form-control-sm" x-model="m.name" placeholder="Equipment" spellcheck="true" autocorrect="on" />
+                </div>
+                <div class="col-12 col-sm-auto">
+                  <div class="d-flex align-items-center gap-1 justify-content-end">
+                    <span class="text-muted flex-shrink-0" style="font-size:0.75rem">Days</span>
+                    <input type="number" class="form-control form-control-sm qty-box" x-model.number="m.duration" min="0" step="0.5" @focus="tableInputFocus($event)" />
+                    <span class="text-muted flex-shrink-0" style="font-size:0.75rem">Rate</span>
+                    <input type="number" class="form-control form-control-sm text-end price-box" x-model.number="m.rate" x-money="m.rate" min="0" step="0.01" @focus="tableInputFocus($event)" />
+                    <span class="fw-semibold small flex-shrink-0 text-end line-total-box" x-text="fmt((+m.duration||0)*(+m.rate||0))"></span>
+                    <button class="btn btn-outline-danger btn-sm flex-shrink-0 p-1" @click="invoiceDraft.costs.machinery.splice(i, 1)"><i class="bi bi-trash"></i></button>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <button class="btn btn-outline-secondary btn-sm mb-3" @click="invAddMachinery()"><i class="bi bi-plus-circle me-1"></i>Add Equipment</button>
+
+            <!-- Labor -->
+            <h6 class="small fw-bold text-uppercase text-muted mb-2"><i class="bi bi-person-workspace me-1"></i>Labor</h6>
+            <div class="row g-2 mb-3 align-items-end">
+              <div class="col-4">
+                <label class="form-label small mb-1">Days</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="invoiceDraft.costs.laborDays" min="0" step="0.5" @focus="tableInputFocus($event)" />
+              </div>
+              <div class="col-4">
+                <label class="form-label small mb-1">Workers</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="invoiceDraft.costs.laborWorkers" min="1" step="1" @focus="tableInputFocus($event)" />
+              </div>
+              <div class="col-4">
+                <label class="form-label small mb-1">Daily Rate</label>
+                <input type="number" class="form-control form-control-sm text-end" x-model.number="invoiceDraft.costs.laborDailyRate" x-money="invoiceDraft.costs.laborDailyRate" min="0" step="0.01" @focus="tableInputFocus($event)" />
+              </div>
+              <div class="col-12 text-end small fw-semibold">Labor: <span x-text="fmt(laborTotal(invoiceDraft.costs))"></span></div>
+            </div>
+
+            <!-- Misc -->
+            <h6 class="small fw-bold text-uppercase text-muted mb-2"><i class="bi bi-receipt me-1"></i>Miscellaneous</h6>
+            <div x-show="invoiceDraft.costs.misc.length === 0" class="text-muted small mb-2">None.</div>
+            <template x-for="(m, i) in invoiceDraft.costs.misc" :key="'ic'+i">
+              <div class="d-flex align-items-center gap-1 mb-2">
+                <input type="text" class="form-control form-control-sm flex-grow-1" x-model="m.description" placeholder="Permit fees, dump charges…" spellcheck="true" autocorrect="on" />
+                <input type="number" class="form-control form-control-sm text-end" style="width:100px" x-model.number="m.amount" x-money="m.amount" min="0" step="0.01" @focus="tableInputFocus($event)" />
+                <button class="btn btn-outline-danger btn-sm flex-shrink-0 p-1" @click="invoiceDraft.costs.misc.splice(i, 1)"><i class="bi bi-trash"></i></button>
+              </div>
+            </template>
+            <button class="btn btn-outline-secondary btn-sm mb-3" @click="invAddMisc()"><i class="bi bi-plus-circle me-1"></i>Add Misc Item</button>
+
+            <!-- Totals -->
+            <div class="border-top pt-2 mb-3 small">
+              <div class="d-flex justify-content-between text-muted" x-show="settings.taxRate > 0">
+                <span>Tax (<span x-text="settings.taxRate"></span>% on materials &amp; machinery)</span>
+                <span x-text="fmt(taxAmount(invoiceDraft.costs))"></span>
+              </div>
+              <div class="d-flex justify-content-between fw-bold fs-6">
+                <span>Invoice Total</span>
+                <span x-text="fmt(grandTotal(invoiceDraft.costs))"></span>
+              </div>
+              <div class="d-flex justify-content-between align-items-center gap-2 my-2">
+                <label class="fw-semibold mb-0" for="invoice-deposit">Less: Deposit Received</label>
+                <div class="input-group input-group-sm" style="width:150px;">
+                  <span class="input-group-text">$</span>
+                  <input id="invoice-deposit" type="number" class="form-control text-end"
+                    x-model.number="invoiceDraft.deposit" x-money="invoiceDraft.deposit"
+                    min="0" step="0.01" placeholder="0.00" @focus="tableInputFocus($event)" />
+                </div>
+              </div>
+              <div class="text-danger small text-end mb-1" x-show="(+invoiceDraft.deposit || 0) > grandTotal(invoiceDraft.costs)">
+                Deposit is more than the invoice total.
+              </div>
+              <div class="d-flex justify-content-between fw-bold fs-5 border-top pt-2 mb-2">
+                <span x-text="(+invoiceDraft.deposit || 0) > 0 ? 'Balance Due' : 'Total Due'"></span>
+                <span x-text="(invoiceBalanceDue(invoiceDraft) < 0 ? '-' : '') + fmt(Math.abs(invoiceBalanceDue(invoiceDraft)))"></span>
+              </div>
+              <div class="d-flex justify-content-between text-muted">
+                <span>Original bid total</span>
+                <span x-text="fmt(grandTotal())"></span>
+              </div>
+            </div>
+
+            <label class="form-label small fw-semibold mb-1">Terms / Notes (shown on invoice)</label>
+            <textarea class="form-control form-control-sm" rows="4" x-model="invoiceDraft.notes" spellcheck="true" autocorrect="on"></textarea>
+          </div>
+          <div class="d-flex gap-2 justify-content-between align-items-center p-3 border-top flex-wrap">
+            <button class="btn btn-outline-secondary btn-sm" @click="resetInvoiceToBid()">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>Reset to Bid
+            </button>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-secondary" @click="invoiceModalOpen = false">Cancel</button>
+              <button class="btn btn-warning fw-bold" @click="saveAndExportInvoice()">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Save &amp; Export Invoice
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
   <!-- Material Calculator Modal -->
   <div x-show="calcModalOpen"
     class="position-fixed top-0 start-0 w-100 h-100 modal-overlay"
@@ -1274,7 +1433,7 @@
               </div>
               <div class="col-4">
                 <label class="form-label small mb-1">Price / Gal ($)</label>
-                <input type="number" class="form-control form-control-sm" x-model.number="calc.paint.pricePerGal" min="0" step="0.01" @focus="$event.target.select()" />
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.paint.pricePerGal" x-money="calc.paint.pricePerGal" min="0" step="0.01" @focus="$event.target.select()" />
               </div>
             </div>
             <div class="small text-muted mt-2"
@@ -1301,7 +1460,7 @@
               </div>
               <div class="col-6">
                 <label class="form-label small mb-1">Price per Cu Yd ($)</label>
-                <input type="number" class="form-control form-control-sm" x-model.number="calc.gravel.pricePerYd" min="0" step="0.01" @focus="$event.target.select()" />
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.gravel.pricePerYd" x-money="calc.gravel.pricePerYd" min="0" step="0.01" @focus="$event.target.select()" />
               </div>
             </div>
           </div>
@@ -1339,7 +1498,7 @@
               </div>
               <div class="col-6">
                 <label class="form-label small mb-1">Price per Pallet ($)</label>
-                <input type="number" class="form-control form-control-sm" x-model.number="calc.sod.pricePerPallet" min="0" step="0.01" @focus="$event.target.select()" />
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.sod.pricePerPallet" x-money="calc.sod.pricePerPallet" min="0" step="0.01" @focus="$event.target.select()" />
               </div>
             </div>
           </div>
@@ -1377,7 +1536,7 @@
               </div>
               <div class="col-6">
                 <label class="form-label small mb-1">Price per Sq Ft ($)</label>
-                <input type="number" class="form-control form-control-sm" x-model.number="calc.tile.pricePerSqFt" min="0" step="0.01" @focus="$event.target.select()" />
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.tile.pricePerSqFt" x-money="calc.tile.pricePerSqFt" min="0" step="0.01" @focus="$event.target.select()" />
               </div>
             </div>
           </div>
