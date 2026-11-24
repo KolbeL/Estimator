@@ -1,0 +1,86 @@
+QPE v0.1.7 — new session prompt
+
+I'm continuing development on Quick Project Estimator (QPE), a cross-platform estimating app built as a single-page web app
+(Alpine.js v3, Bootstrap 5) packaged for Android via Capacitor and PC via Electron.
+
+---
+Project layout
+
+- Source: C:\Projects\Estimator\index.html — only edit this, never www/index.html
+- JS: C:\Projects\Estimator\js\app.js
+- CSS: C:\Projects\Estimator\css\styles.css
+- Build script: C:\Projects\Estimator\scripts\build.js — runs npm run build, deletes and recreates www/ from index.html, js/,
+  css/, img/, vendor/
+- Vendor (all local): vendor/bootstrap.min.css, vendor/bootstrap-icons.min.css (+ vendor/fonts/), vendor/alpine.min.js,
+  vendor/bootstrap.bundle.min.js, vendor/pdf-lib.min.js, vendor/jspdf.umd.min.js, vendor/jspdf.plugin.autotable.min.js
+- Electron worktree: C:\Projects\Estimator\.claude\worktrees\electron-setup\ — must manually Copy-Item changed files here
+  before npm run build:win
+- Android local test build: $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr";
+  $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"; cd android; .\gradlew.bat assembleRelease
+- Android submission build: fastlane deploy version:X.X.X  (run from C:\Projects\Estimator, NOT bundle exec)
+- Full build pipeline: npm run build → npx cap sync → gradlew.bat assembleRelease
+
+---
+Current version
+
+versionCode 8 / versionName "0.1.6" — submitted to Play Store internal track
+Working toward: versionCode 9 / versionName "0.1.7"
+
+---
+Branch context
+
+- master: active development for 0.1.7 fixes
+- 0.2.0: parked WIP branch — trade selector, Unit field on materials, Paint Calculator modal
+  (do not merge until 0.1.7 ships)
+
+---
+Current <head> script loading order
+
+<style>[x-cloak]{display:none!important}</style>
+<link rel="stylesheet" href="vendor/bootstrap.min.css" />
+<link rel="stylesheet" href="vendor/bootstrap-icons.min.css" />
+<link rel="stylesheet" href="css/styles.css?v=5" />
+<script>/* inline theme: reads localStorage, sets --theme-primary/accent CSS vars before first paint */</script>
+<script defer src="vendor/pdf-lib.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="js/firebase-config.js"></script>
+<script src="js/firebase.js"></script>
+<script src="js/app.js?v=7"></script>
+<script defer src="vendor/alpine.min.js"></script>
+
+Body end: <script src="vendor/bootstrap.bundle.min.js"></script>
+
+<body x-data="estimatorApp()" x-init="init()" x-cloak>
+
+---
+Key architecture notes
+
+- Alpine x-ignore: any DOM clone appended to <body> must have clone.setAttribute('x-ignore', '') to prevent
+  Alpine's MutationObserver from re-initializing x-model inputs and blanking their values.
+
+- Drag-and-drop: shared touch drag state (_touchDragTarget: 'scope'|'materials', dragIndex, dropIndex,
+  _dragClone, etc.). Scope uses touchDragStart/touchDragMove/touchDragEnd. Materials uses matTouchDragStart +
+  the same move/end handlers. Mouse drag uses separate scopeDrag*/matDrag* method sets.
+  Material <tr> clones are wrapped in a <table>/<tbody> before appending to body so they render correctly.
+
+- Auto-save: in-progress estimate is auto-saved to localStorage key 'estimator-draft' via debounced input
+  listener (800ms) + $watch on array lengths. Restored on init(). Cleared by _resetEstimate().
+  Photos are excluded from draft if localStorage quota is exceeded.
+
+- PDF header layout: logo goes top-LEFT (not right). y-cursor advances by logoH after drawing the logo,
+  so the "Project Estimate" title never overlaps the logo even when no company info is filled in.
+
+- Settings are stored in localStorage key 'estimator-settings'. Only settings are synced to Firebase;
+  estimates are saved to Firebase separately via the cloud save/load UI.
+
+- Cache-bust query strings: bump ?v=N on css/styles.css and js/app.js in index.html when releasing.
+  Also bump versionCode/versionName in android/app/build.gradle.
+
+- index.html is directly testable in a browser (no build step needed) for UI/logic changes.
+
+---
+First task for the new session
+
+What fixes are needed for 0.1.7? List them and we'll work through them.

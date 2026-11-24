@@ -1,3 +1,10 @@
+// Invoice terms: the pre-filled text on invoices. Earlier builds pre-filled invoices with the bid-terms placeholder below.
+const QPE_OLD_INVOICE_PLACEHOLDER = `50% deposit due at project start, balance due upon completion.
+
+Any additional work beyond the services listed above may incur extra charges.`;
+const QPE_DEFAULT_INVOICE_TERMS = `Payment due within 15 days of invoice date.
+Thank you for your business!`;
+
 const QPE_DEFAULT_PREFABS = {
   landscaping: [
     { title: 'Site Preparation',         description: 'Clear and grade the designated area, remove debris, and prepare soil for new installation.' },
@@ -91,9 +98,59 @@ document.addEventListener('alpine:init', () => {
     el.addEventListener('blur', () => { el.value = fmt(el.value); });
   });
 
+  // x-tap: run on touch-up instead of waiting for `click`. Android swallows the click for a tap that lands
+  // while the page is still coasting from a scroll (it only stops the scroll), so the first tap on a nav
+  // button did nothing. Paired with `touch-action: none` on .nav-btn so a tap that drifts a few pixels is not
+  // turned into a scroll (which cancels it). Mouse and keyboard still use click; the click that follows a handled touch is ignored.
+  Alpine.directive('tap', (el, { expression }, { evaluateLater, cleanup }) => {
+    const run = evaluateLater(expression);
+    let lastTouch = 0;
+    const onUp = (e) => {
+      if (e.pointerType === 'mouse' || (e.button !== undefined && e.button > 0)) return;
+      // Count it as a tap if the finger lifted on (or just beside) the button, even if it drifted a little
+      const r = el.getBoundingClientRect(), pad = 16;
+      if (e.clientX < r.left - pad || e.clientX > r.right + pad || e.clientY < r.top - pad || e.clientY > r.bottom + pad) return;
+      lastTouch = Date.now();
+      run();
+    };
+    const onClick = (e) => {
+      if (Date.now() - lastTouch < 800) { e.preventDefault(); e.stopImmediatePropagation(); return; }
+      run();
+    };
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('click', onClick);
+    cleanup(() => { el.removeEventListener('pointerup', onUp); el.removeEventListener('click', onClick); });
+  });
+
+  // Number fields on Android: the keyboard sends one character at a time and x-model writes the parsed number
+  // back into the field after every keystroke. Two in-between states lose characters that way:
+  //   - a lone "." is not a valid number, so the field reads "" and the write-back wipes the dot (".79" became "79")
+  //   - ".0" / "1.50" / "1." parse to a number whose text has no trailing dot/zero, so the next digit lands in the
+  //     wrong place (".05" became "5")
+  // While typing we skip the model update for those in-between states (the number is unchanged or one keystroke
+  // from valid); when the field is left, we sync the model once.
+  const numberInputHolds = (el) => el.value === '' || (el.value.indexOf('.') !== -1 && /[.0]$/.test(el.value));
+  document.addEventListener('input', (e) => {
+    const el = e.target;
+    if (!el || el.tagName !== 'INPUT' || el.type !== 'number' || !e.isTrusted) return;
+    if ((el.value === '' && e.data) || (el.value !== '' && numberInputHolds(el))) e.stopImmediatePropagation();
+  }, true);
+  document.addEventListener('focusout', (e) => {
+    const el = e.target;
+    if (el && el.tagName === 'INPUT' && el.type === 'number' && numberInputHolds(el)) el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, true);
+
+  // The keyboard's Go / Done key (Enter) closes the keyboard: leave the field. Runs after any handler on the field
+  // (for example Enter in the sign-in password box still signs in). Multi-line boxes keep Enter as a new line.
+  document.addEventListener('keydown', (e) => {
+    const el = e.target;
+    if (e.key !== 'Enter' || !el || el.tagName !== 'INPUT') return;
+    if (!['text', 'number', 'tel', 'email', 'search', 'password', 'url'].includes(el.type)) return;
+    setTimeout(() => { if (document.activeElement === el) el.blur(); }, 0);
+  }, true);
+
   Alpine.data('estimatorApp', () => ({
     currentView: 'estimator',
-    settingsSaved: false,
     onboardingStep: 0,
     onboardingTradeError: false,
     prefabPickerOpen: false,
@@ -137,11 +194,221 @@ document.addEventListener('alpine:init', () => {
 
     calcModalOpen: false,
     calcTab: 'paint',
+    calcPickerOpen: false,
+    noticeMessage: '',
+    noticeResolve: null,
+    headerStuck: false,
+    keyboardOpen: false,
+    templateManagerOpen: false,
+    templateTrade: '',
+    qsel: '', // which app-styled dropdown is open (see .qpe-select in index.html)
+    calcAddedKey: '',
+    calcGroups: window.QPE_CALC_GROUPS || [],
+    // Bulk materials: tonsPerYd = typical weight per cubic yard (averages, supplier figures vary);
+    // minDepth = typical minimum depth in inches (about 1.5x the largest stone for gravel).
+    bulkMaterials: [
+      { group: 'Gravel & stone', id: 'gravel',    label: 'Gravel (general)',             name: 'Gravel',                       tonsPerYd: 1.4,  minDepth: 0 },
+      { group: 'Gravel & stone', id: 'pea',       label: 'Pea gravel (3/8")',            name: 'Pea Gravel 3/8"',              tonsPerYd: 1.4,  minDepth: 1 },
+      { group: 'Gravel & stone', id: 'halfminus', label: '1/2" minus (crusher fines)',   name: 'Crushed Stone 1/2" Minus',     tonsPerYd: 1.5,  minDepth: 1 },
+      { group: 'Gravel & stone', id: 'threeq',    label: '3/4" crushed stone',           name: 'Crushed Stone 3/4"',           tonsPerYd: 1.35, minDepth: 1.5 },
+      { group: 'Gravel & stone', id: 'roadbase',  label: '3/4" minus (road base / ABC)', name: 'Road Base 3/4" Minus',         tonsPerYd: 1.5,  minDepth: 2 },
+      { group: 'Gravel & stone', id: 'onetwo',    label: '1"–2" crushed stone',          name: 'Crushed Stone 1"–2"',          tonsPerYd: 1.3,  minDepth: 3 },
+      { group: 'Gravel & stone', id: 'twofour',   label: '2"–4" stone / drain rock',     name: 'Drain Rock 2"–4"',             tonsPerYd: 1.25, minDepth: 6 },
+      { group: 'Decorative rock', id: 'river',    label: 'River rock (1"–3")',           name: 'River Rock 1"–3"',             tonsPerYd: 1.4,  minDepth: 2 },
+      { group: 'Decorative rock', id: 'cobble',   label: 'Cobble (3"–6")',               name: 'Cobble 3"–6"',                 tonsPerYd: 1.3,  minDepth: 4 },
+      { group: 'Decorative rock', id: 'lava',     label: 'Lava rock',                    name: 'Lava Rock',                    tonsPerYd: 0.6,  minDepth: 2 },
+      { group: 'Decorative rock', id: 'marble',   label: 'White marble chips',           name: 'Marble Chips',                 tonsPerYd: 1.4,  minDepth: 2 },
+      { group: 'Decorative rock', id: 'dg',       label: 'Decomposed granite',           name: 'Decomposed Granite',           tonsPerYd: 1.5,  minDepth: 2 },
+      { group: 'Sand, soil & mulch', id: 'sand',    label: 'Sand',                       name: 'Sand',                         tonsPerYd: 1.3,  minDepth: 0 },
+      { group: 'Sand, soil & mulch', id: 'topsoil', label: 'Topsoil',                    name: 'Topsoil',                      tonsPerYd: 1.1,  minDepth: 0 },
+      { group: 'Sand, soil & mulch', id: 'mulch',   label: 'Mulch / bark',               name: 'Mulch',                        tonsPerYd: 0.4,  minDepth: 2 },
+    ],
     calc: {
       paint:  { name: 'Paint',           wallsSqFt: 0, ceilingSqFt: 0, doors: 0, windows: 0, coats: 2, coverage: 350, pricePerGal: 0 },
-      gravel: { name: 'Gravel',          length: 0, width: 0,  depth: 3,      pricePerYd: 0 },
+      gravel: { name: 'Gravel',          material: 'gravel', length: 0, width: 0,  depth: 3, compactOn: false, compactPct: 20, pricedBy: 'yd', tonsPerYd: 1.4, pricePerYd: 0, pricePerTon: 0 },
       sod:    { name: 'Sod',             mode: 'dimensions', length: 0, width: 0, sqFtDirect: 0, sqFtPerPallet: 450, pricePerPallet: 0 },
-      tile:   { name: 'Flooring', mode: 'dimensions', length: 0, width: 0, sqFtDirect: 0, waste: 10, pricePerSqFt: 0 },
+      tile:   { name: 'Flooring', mode: 'dimensions', length: 0, width: 0, sqFtDirect: 0, waste: 10, soldBy: 'sqft', boxSqFt: 20, pricePerBox: 0, pricePerSqFt: 0 },
+      concrete: {
+        name: 'Concrete', shape: 'slab', count: 1,
+        wasteOn: true, wastePct: 10,
+        orderBy: 'readymix', bagLb: 80, pricePerYd: 0, pricePerBag: 0,
+        slab:    { length: 0, width: 0, thick: 4 },
+        footing: { length: 0, width: 12, depth: 8 },
+        wall:    { length: 0, thick: 8, height: 4 },
+        round:   { diam: 0, thick: 4 },
+        column:  { diam: 12, height: 4 },
+        curb:    { length: 0, curbW: 6, curbH: 12, gutterW: 18, gutterT: 6 },
+        stairs:  { steps: 3, rise: 7, run: 11, width: 4, landing: 0 },
+        area:    { area: 0, thick: 4 },
+      },
+      ...(window.QPE_CALC_STATE ? window.QPE_CALC_STATE() : {}), // fence, roofing, drywall, deck, ... (see js/calculators.js)
+    },
+
+    // Concrete calculator: shape catalog (drives the shape tiles, input fields and volume math)
+    concreteShapes: [
+      { id: 'slab', label: 'Slab', icon: 'bi-square',
+        hint: 'Patios, driveways, sidewalks, floors. Volume = length × width × thickness.',
+        fields: [{ key: 'length', label: 'Length (ft)' }, { key: 'width', label: 'Width (ft)' }, { key: 'thick', label: 'Thickness (in)' }] },
+      { id: 'footing', label: 'Footing', icon: 'bi-border-width',
+        hint: 'Continuous strip footings. Volume = length × width × depth.',
+        fields: [{ key: 'length', label: 'Length (ft)' }, { key: 'width', label: 'Width (in)' }, { key: 'depth', label: 'Depth (in)' }] },
+      { id: 'wall', label: 'Wall', icon: 'bi-bricks',
+        hint: 'Poured walls and stem walls. Volume = length × thickness × height.',
+        fields: [{ key: 'length', label: 'Length (ft)' }, { key: 'thick', label: 'Thickness (in)' }, { key: 'height', label: 'Height (ft)' }] },
+      { id: 'round', label: 'Round Slab', icon: 'bi-circle',
+        hint: 'Circular pads and patios. Volume = π × radius² × thickness.',
+        fields: [{ key: 'diam', label: 'Diameter (ft)' }, { key: 'thick', label: 'Thickness (in)' }] },
+      { id: 'column', label: 'Column / Tube', icon: 'bi-database',
+        hint: 'Sonotube piers, post holes, round columns. Volume = π × radius² × height. Use “# of Pours” for multiples.',
+        fields: [{ key: 'diam', label: 'Diameter (in)' }, { key: 'height', label: 'Height / Depth (ft)' }] },
+      { id: 'curb', label: 'Curb & Gutter', icon: 'bi-align-bottom',
+        hint: 'Curb height is measured from the bottom of the pour; the gutter pours in front of the curb. Set gutter width to 0 for a plain curb.',
+        fields: [{ key: 'length', label: 'Length (ft)' }, { key: 'curbW', label: 'Curb Width (in)' }, { key: 'curbH', label: 'Curb Height (in)' }, { key: 'gutterW', label: 'Gutter Width (in)' }, { key: 'gutterT', label: 'Gutter Thickness (in)' }] },
+      { id: 'stairs', label: 'Stairs', icon: 'bi-bar-chart-steps',
+        hint: 'Solid poured steps from the ground up. Rise = height of each step, run = tread depth. A landing is poured full height at the top; leave it 0 if none.',
+        fields: [{ key: 'steps', label: '# of Steps', step: 1 }, { key: 'rise', label: 'Rise (in)' }, { key: 'run', label: 'Run (in)' }, { key: 'width', label: 'Width (ft)' }, { key: 'landing', label: 'Landing Depth (ft)' }] },
+      { id: 'area', label: 'Custom Area', icon: 'bi-pentagon',
+        hint: 'Irregular shapes: work out the surface area (sq ft) yourself, then enter the thickness.',
+        fields: [{ key: 'area', label: 'Area (sq ft)' }, { key: 'thick', label: 'Thickness (in)' }] },
+    ],
+    concreteBagYield: { 40: 0.30, 50: 0.375, 60: 0.45, 80: 0.60 }, // cu ft of concrete per bag
+
+    // "How is this calculated?" (i) panel content for every calculator tab
+    calcInfoOpen: false,
+    calcInfo: {
+      paint: {
+        title: 'Paint',
+        formula: '(Walls − doors − windows + ceiling) × coats ÷ coverage = gallons',
+        assumptions: [
+          'Each door takes 20 sq ft off the wall area and each window takes 15 sq ft.',
+          'Default coverage is 350 sq ft per gallon. Change it to match the coverage on your paint can.',
+          'Gallons are rounded up to the next whole gallon.'
+        ],
+        excludes: [
+          'Only the areas you enter are counted. Trim, doors, windows and baseboards are not added for you.',
+          'Primer, or extra coats over a dark color or bare surface. Add coats to cover it.',
+          'Rough or porous surfaces such as stucco, block and raw drywall, which soak up more paint.'
+        ]
+      },
+      gravel: {
+        title: 'Gravel & Bulk',
+        formula: 'Length × Width × Depth (in) ÷ 12 ÷ 27 = cubic yards. Tons = cubic yards × tons per cu yd.',
+        assumptions: [
+          'The same depth over the whole area.',
+          'Rounded up to the next 0.1 cu yd (or 0.1 ton).',
+          'Compaction is off by default. Turn it on to add the extra material a compacted base needs (default 20%, so you order loose material for a compacted depth).',
+          'Tons use the tons-per-cu-yd figure for the material you pick, for example 3/4" crushed stone 1.35, 1/2" minus 1.5, 1"–2" stone 1.3, river rock 1.4, lava rock 0.6 and mulch 0.4. Material with fines packs tighter and weighs more per yard, so a ton covers less area. These are averages; confirm with your supplier and edit the figure if theirs differs.',
+          'The coverage note under Depth shows how far one ton goes at your depth. The “typical minimum depth” is about 1.5 times the largest stone; thinner layers leave gaps and shift.'
+        ],
+        excludes: [
+          'Waste or spillage.',
+          'Wet material, which weighs more per cubic yard.',
+          'Delivery fees and minimum loads.'
+        ]
+      },
+      sod: {
+        title: 'Sod',
+        formula: 'Area ÷ sq ft per pallet = pallets',
+        assumptions: [
+          'Default is 450 sq ft per pallet. Pallet sizes vary by supplier, so check yours.',
+          'Rounded up to whole pallets.'
+        ],
+        excludes: [
+          'Waste for cuts, curves and edges. Many installers add 5–10%; enter a slightly larger area to cover it.',
+          'Soil prep, topsoil and fertilizer. Add those as separate materials.'
+        ]
+      },
+      tile: {
+        title: 'Flooring',
+        formula: 'Area × (1 + waste %) = sq ft to buy',
+        assumptions: [
+          'Default waste is 10%, a typical allowance for cuts and breakage. Use more for diagonal or intricate layouts.',
+          'Rounded up to a whole sq ft.',
+          'Choose “Box” to buy by the box: the sq ft to buy is divided by the coverage per box and rounded up to full boxes.'
+        ],
+        excludes: [
+          'Underlayment, thinset, grout and trim. Add those as separate materials. Baseboard has its own calculator.'
+        ]
+      },
+      concrete: {
+        title: 'Concrete',
+        shared: [
+          'Dimensions: feet for long runs, inches for thickness, width and depth.',
+          'Waste % is added on top of the total volume. 10% is a common allowance for uneven ground, spillage and over-digging.',
+          'Bag counts use standard yields: 40 lb ≈ 0.30 cu ft, 50 lb ≈ 0.375, 60 lb ≈ 0.45, 80 lb ≈ 0.60. Brands vary slightly, so check the bag.',
+          'Ready-mix is rounded up to the next 0.1 cu yd. Bags are rounded up to whole bags.',
+          'Many ready-mix suppliers charge a short-load fee on small orders. Ask your supplier.'
+        ]
+      }
+    },
+    concreteShapeInfo: {
+      slab: {
+        formula: 'Length × Width × Thickness ÷ 12 ÷ 27 = cubic yards',
+        assumptions: ['The same thickness across the entire slab.', 'A flat rectangle.'],
+        excludes: ['Thickened edges or an integral footing. Add those as a Footing.', 'Sub-base. Use the Gravel tab.']
+      },
+      footing: {
+        formula: 'Length × Width × Depth',
+        assumptions: ['One continuous run with the same cross-section the whole way.', 'Enter the total length of all runs, or use “# of Pours” for identical runs.'],
+        excludes: ['Overlap at corners is not deducted, so the total is slightly high.']
+      },
+      wall: {
+        formula: 'Length × Thickness × Height',
+        assumptions: ['The same thickness and height along the whole wall.', 'A solid wall. Window and door openings are not subtracted.'],
+        excludes: ['The footing under the wall. Add it as a Footing.', 'Openings. Reduce the length, or pour them as separate walls.']
+      },
+      round: {
+        formula: 'π × (Diameter ÷ 2)² × Thickness',
+        assumptions: ['A perfect circle with an even thickness.'],
+        excludes: ['Thickened edges.']
+      },
+      column: {
+        formula: 'π × (Diameter ÷ 2)² × Height',
+        assumptions: ['A straight cylinder at the diameter you enter. For Sonotube, use the inside diameter.', 'Use “# of Pours” for the number of identical piers or holes.'],
+        excludes: ['Bell or flared bases.', 'Holes dug wider than the tube. Poured straight into dirt, the waste % helps cover this.']
+      },
+      curb: {
+        formula: 'Length × [(Curb width × Curb height) + (Gutter width × Gutter thickness)]',
+        assumptions: ['The curb is a rectangle measured from the bottom of the pour.', 'The gutter sits in front of the curb, with no overlap.', 'The same cross-section along the whole length.'],
+        excludes: ['A sloped or rolled curb face holds a little less concrete than a rectangle, so this slightly overestimates.', 'Corners and driveway aprons. Add those as a Custom Area.']
+      },
+      stairs: {
+        formula: 'Width × Run × Rise × n(n+1) ÷ 2, plus Landing depth × Width × total height',
+        assumptions: ['Solid poured steps, filled all the way down to the ground.', 'Every step has the same rise and run.', 'The optional landing at the top is poured to full height and counted separately.'],
+        excludes: ['Thinner suspended-slab stairs, which use far less concrete.', 'Footings or a foundation under the stairs.']
+      },
+      area: {
+        formula: 'Area × Thickness ÷ 12 ÷ 27 = cubic yards',
+        assumptions: ['You work out the surface area yourself, for example ½ × base × height for a triangle.', 'The same thickness over the whole area.'],
+        excludes: ['Areas with different thicknesses. Split them into separate pours.']
+      }
+    },
+    calcInfoSections() {
+      const tab = this.calcTab;
+      const def = window.QPE_CALCS && window.QPE_CALCS[tab];
+      if (def) {
+        return [
+          { heading: 'Formula', text: def.info.formula },
+          { heading: 'Assumptions', items: def.info.assumptions },
+          { heading: 'Not included', items: def.info.excludes }
+        ];
+      }
+      const info = this.calcInfo[tab];
+      if (!info) return [];
+      if (tab !== 'concrete') {
+        return [
+          { heading: 'Formula', text: info.formula },
+          { heading: 'Assumptions', items: info.assumptions },
+          { heading: 'Not included', items: info.excludes }
+        ];
+      }
+      const s = this.concreteShapeInfo[this.calc.concrete.shape] || {};
+      return [
+        { heading: `Formula – ${this.concreteShape().label}`, text: s.formula },
+        { heading: 'Assumptions', items: s.assumptions },
+        { heading: 'Not included', items: s.excludes },
+        { heading: 'Waste, bags and rounding', items: info.shared }
+      ];
     },
 
     estimate: {
@@ -176,9 +443,12 @@ document.addEventListener('alpine:init', () => {
       titleColor:   '#3A5890',
       darkMode:     'os',
       logo: null,
+      logoName: '',
       termsAndConditions: `50% deposit due at project start, balance due upon completion.
 
 Any additional work beyond the services listed above may incur extra charges.`,
+      // Pre-filled on every invoice (editable per invoice)
+      invoiceTerms: QPE_DEFAULT_INVOICE_TERMS,
       selectedTrade: '',
       prefabScopeItems: [],
       initializedTrades: []
@@ -206,7 +476,14 @@ Any additional work beyond the services listed above may incur extra charges.`,
     init() {
       const saved = localStorage.getItem('estimator-settings');
       if (saved) {
-        try { Object.assign(this.settings, JSON.parse(saved)); } catch (_) {}
+        try {
+          const parsed = JSON.parse(saved);
+          Object.assign(this.settings, parsed);
+          // Settings saved before invoice terms existed: keep what invoices already pre-filled (the bid terms)
+          if (parsed.invoiceTerms === undefined) this.settings.invoiceTerms = this.settings.termsAndConditions;
+          // Still the old bid-style placeholder (never customized): use the invoice-style wording instead
+          if (this.settings.invoiceTerms === QPE_OLD_INVOICE_PLACEHOLDER) this.settings.invoiceTerms = QPE_DEFAULT_INVOICE_TERMS;
+        } catch (_) {}
       }
       // Backfill initializedTrades for saves that predate the field
       this.settings.prefabScopeItems.forEach(item => {
@@ -231,6 +508,31 @@ Any additional work beyond the services listed above may incur extra charges.`,
       this.$watch('settings.primaryColor', () => this.applyTheme());
       this.$watch('settings.accentColor',  () => this.applyTheme());
       this.$watch('settings.darkMode',     () => this.applyDarkMode());
+      // Sticky header: note when the brand row has scrolled away (the project row is then locked at the top)
+      const onScroll = () => { this.headerStuck = window.scrollY > 48; };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+      // Keyboard detection (touch devices): the visible height drops sharply while the keyboard is up. Dismissing it
+      // with the back key leaves the field focused, so focus alone is not a reliable signal.
+      const coarse = window.matchMedia('(pointer: coarse)');
+      const vv = window.visualViewport;
+      const viewH = () => (vv ? vv.height : window.innerHeight);
+      let maxH = viewH();
+      const updateKeyboard = () => {
+        const h = viewH();
+        if (h > maxH) maxH = h;
+        this.keyboardOpen = coarse.matches && h < maxH * 0.8;
+      };
+      window.addEventListener('resize', updateKeyboard);
+      if (vv) vv.addEventListener('resize', updateKeyboard);
+      window.addEventListener('orientationchange', () => setTimeout(() => { maxH = viewH(); updateKeyboard(); }, 400));
+      // Settings auto-save: any change is written to this device (and the cloud when signed in) a moment later
+      this.$watch('settings', () => this._queueSettingsSave());
+      const flushSettings = () => {
+        if (this._settingsTimer) { clearTimeout(this._settingsTimer); this._settingsTimer = null; this.saveSettings(); }
+      };
+      window.addEventListener('pagehide', flushSettings);
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushSettings(); });
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
         if ((this.settings.darkMode || 'os') === 'os') this.applyDarkMode();
       });
@@ -295,7 +597,9 @@ Any additional work beyond the services listed above may incur extra charges.`,
             try {
               const cloud = await fbLoadSettings(user.uid);
               if (cloud) {
+                this._skipSettingsSave = true;
                 Object.assign(this.settings, cloud);
+                this.$nextTick(() => { this._skipSettingsSave = false; });
                 localStorage.setItem('estimator-settings', JSON.stringify(this.settings));
                 this.applyTheme();
                 this.applyDarkMode();
@@ -601,13 +905,28 @@ Any additional work beyond the services listed above may incur extra charges.`,
       this.estimate.costs.misc.splice(i, 1);
     },
 
-    addPrefabItem() {
-      if (!this.settings.selectedTrade) return;
-      this.settings.prefabScopeItems.push({ _id: Date.now() + Math.random(), tradeId: this.settings.selectedTrade, title: '', description: '' });
+    addPrefabItem(tradeId = this.settings.selectedTrade) {
+      if (!tradeId) return;
+      this.settings.prefabScopeItems.push({ _id: Date.now() + Math.random(), tradeId, title: '', description: '' });
       this.saveSettings();
     },
+    openTemplateManager() {
+      this.templateTrade = this.settings.selectedTrade || '';
+      this.templateManagerOpen = true;
+    },
+    closeTemplateManager() {
+      this.saveSettings();
+      this.templateManagerOpen = false;
+    },
+    // Top nav helpers
+    // The gear only ever opens Settings (Back to estimate is the way out), so tapping it again does nothing
+    openSettings() { this.currentView = 'settings'; },
+    navProjectEmpty() { return !((this.estimate.projectName || '').trim() || (this.estimate.customerName || '').trim()); },
+    navProjectLabel() {
+      return (this.estimate.projectName || '').trim() || (this.estimate.customerName || '').trim() || 'New estimate';
+    },
     async removePrefabItem(id) {
-      if (!await this._confirm('This will completely delete this item from Prefab Scope Items. Are you sure?')) return;
+      if (!await this._confirm('This will completely delete this item from Scope Templates. Are you sure?')) return;
       const idx = this.settings.prefabScopeItems.findIndex(i => i._id === id);
       if (idx !== -1) this.settings.prefabScopeItems.splice(idx, 1);
       this.saveSettings();
@@ -671,7 +990,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
       if (!item.title || !this.settings.selectedTrade || this.isItemSavedAsPrefab(item)) return;
       const trade = this.trades.find(t => t.id === this.settings.selectedTrade);
       const tradeName = trade?.label || 'this trade';
-      if (!await this._confirm(`Do you want to add this to your list of prefabs for ${tradeName}?`)) return;
+      if (!await this._confirm(`Do you want to add this to your list of templates for ${tradeName}?`)) return;
       this.settings.prefabScopeItems.push({
         _id: Date.now() + Math.random(),
         tradeId: this.settings.selectedTrade,
@@ -683,7 +1002,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
 
     // --- Photos ---
     async addPhoto() {
-      if (this.estimate.photos.length >= 20) { alert('Maximum 20 photos per estimate.'); return; }
+      if (this.estimate.photos.length >= 20) { this._notice('Maximum 20 photos per estimate.'); return; }
       if (window.Capacitor?.isNativePlatform()) {
         try {
           const { Camera } = window.Capacitor.Plugins;
@@ -761,11 +1080,13 @@ Any additional work beyond the services listed above may incur extra charges.`,
       const file = event.target.files[0];
       if (!file) return;
       const reader = new FileReader();
-      reader.onload = (e) => { this.settings.logo = e.target.result; };
+      reader.onload = (e) => { this.settings.logo = e.target.result; this.settings.logoName = file.name || ''; };
       reader.readAsDataURL(file);
+      event.target.value = ''; // lets the same file be chosen again
     },
     removeLogo() {
       this.settings.logo = null;
+      this.settings.logoName = '';
       document.getElementById('logo-input').value = '';
     },
     _saveDraft() {
@@ -780,10 +1101,14 @@ Any additional work beyond the services listed above may incur extra charges.`,
       }
     },
 
+    // Debounced save used by the settings auto-save watcher
+    _queueSettingsSave() {
+      if (this._skipSettingsSave) return;
+      clearTimeout(this._settingsTimer);
+      this._settingsTimer = setTimeout(() => { this._settingsTimer = null; this.saveSettings(); }, 800);
+    },
     saveSettings() {
       localStorage.setItem('estimator-settings', JSON.stringify(this.settings));
-      this.settingsSaved = true;
-      setTimeout(() => { this.settingsSaved = false; }, 3000);
       if (this.authUser && window._fbReady) {
         this.syncStatus = 'saving';
         fbSaveSettings(this.authUser.uid, this.settings)
@@ -823,13 +1148,15 @@ Any additional work beyond the services listed above may incur extra charges.`,
       try {
         const cloud = await fbLoadSettings(this.authUser.uid);
         if (cloud) {
+          this._skipSettingsSave = true;
           Object.assign(this.settings, cloud);
+          this.$nextTick(() => { this._skipSettingsSave = false; });
           localStorage.setItem('estimator-settings', JSON.stringify(this.settings));
           this.applyTheme();
           this.syncStatus = 'loaded';
           setTimeout(() => { this.syncStatus = ''; }, 3000);
         } else {
-          alert('No cloud settings found yet. Save your settings to upload them.');
+          this._notice('No cloud settings found yet. Change any setting and it will upload automatically.');
         }
       } catch (_) {
         this.syncStatus = 'error';
@@ -872,7 +1199,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
     async saveEstimateToCloud() {
       if (!this.authUser || !window._fbReady) return;
       if (!this.estimate.customerName.trim()) {
-        alert('Please enter a customer name before saving.');
+        this._notice('Please enter a customer name before saving.');
         return;
       }
       this.cloudSaveStatus = 'saving';
@@ -896,7 +1223,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
       this.openModal = false;
       try {
         const full = await fbLoadEstimate(this.authUser.uid, est.id);
-        if (!full) { alert('Could not load estimate from cloud.'); return; }
+        if (!full) { this._notice('Could not load estimate from cloud.'); return; }
         const { id, savedAt, grandTotal, photoCount, costs, scopeOfWork, photos, ...scalars } = full;
         this._resetEstimate();
         this.loadedCloudId = id;
@@ -915,7 +1242,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
         this.estimate.photos = photos || [];
         this.currentView = 'estimator';
       } catch (e) {
-        alert('Failed to load estimate from cloud.');
+        this._notice('Failed to load estimate from cloud.');
       }
     },
 
@@ -925,7 +1252,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
         await fbDeleteEstimate(this.authUser.uid, est.id);
         this.cloudEstimates = this.cloudEstimates.filter(e => e.id !== est.id);
       } catch (_) {
-        alert('Failed to delete. Please try again.');
+        this._notice('Failed to delete. Please try again.');
       }
     },
 
@@ -963,7 +1290,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
         const pdfDoc = await PDFDocument.load(bytes, { ignoreEncryption: true });
         const subject = pdfDoc.getSubject();
         if (!subject) {
-          alert('This PDF does not contain estimate data. Only PDFs generated by this app can be opened.');
+          this._notice('This PDF does not contain estimate data. Only PDFs generated by this app can be opened.');
           return;
         }
         const data = JSON.parse(subject);
@@ -983,7 +1310,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
         this.estimate.photos = photos || [];
         this.currentView = 'estimator';
       } catch (err) {
-        alert('Could not load estimate. Make sure this PDF was generated by this app.');
+        this._notice('Could not load estimate. Make sure this PDF was generated by this app.');
       } finally {
         event.target.value = '';
       }
@@ -995,7 +1322,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
         this.estimate.scopeOfWork.length || this.estimate.costs.materials.length ||
         this.estimate.costs.machinery.length || this.estimate.costs.misc.length ||
         this.estimate.photos.length;
-      if (hasData && !await this._confirm('Start a new estimate? Your current data will be cleared.')) return;
+      if (hasData && !await this._confirm('Start a new estimate? Your current data will be cleared.\n\nHeads up: bids that haven\'t been saved to the cloud or exported as a PDF will be lost.')) return;
       this._resetEstimate();
       this.currentView = 'estimator';
     },
@@ -1005,6 +1332,18 @@ Any additional work beyond the services listed above may incur extra charges.`,
         this.confirmMessage = message;
         this.confirmResolve = resolve;
       });
+    },
+    // App-styled replacement for window.alert: shows a message with a single OK button
+    _notice(message) {
+      return new Promise(resolve => {
+        this.noticeMessage = message;
+        this.noticeResolve = resolve;
+      });
+    },
+    noticeOk() {
+      if (this.noticeResolve) this.noticeResolve();
+      this.noticeMessage = '';
+      this.noticeResolve = null;
     },
     confirmYes() {
       if (this.confirmResolve) this.confirmResolve(true);
@@ -1055,8 +1394,118 @@ Any additional work beyond the services listed above may incur extra charges.`,
       this.colorPickerOpen = false;
     },
 
+    // --- Concrete calculator ---
+    concreteShape() { return this.concreteShapes.find(s => s.id === this.calc.concrete.shape) || this.concreteShapes[0]; },
+    // Volume of ONE pour in cubic feet (long runs in ft; thickness/width/depth in inches)
+    concreteSingleFt3() {
+      const c = this.calc.concrete;
+      const d = c[c.shape] || {};
+      const n = k => +d[k] || 0;
+      switch (c.shape) {
+        case 'slab':    return n('length') * n('width') * (n('thick') / 12);
+        case 'footing': return n('length') * (n('width') / 12) * (n('depth') / 12);
+        case 'wall':    return n('length') * (n('thick') / 12) * n('height');
+        case 'round':   return Math.PI * Math.pow(n('diam') / 2, 2) * (n('thick') / 12);
+        case 'column':  return Math.PI * Math.pow(n('diam') / 12 / 2, 2) * n('height');
+        case 'curb':    return n('length') * ((n('curbW') / 12) * (n('curbH') / 12) + (n('gutterW') / 12) * (n('gutterT') / 12));
+        case 'stairs': {
+          const steps = Math.max(0, Math.floor(n('steps')));
+          const treads = n('width') * (n('run') / 12) * (n('rise') / 12) * steps * (steps + 1) / 2;
+          const landing = n('landing') * n('width') * (steps * n('rise') / 12);
+          return treads + landing;
+        }
+        case 'area':    return n('area') * (n('thick') / 12);
+      }
+      return 0;
+    },
+    concreteTotals() {
+      const c = this.calc.concrete;
+      const rawFt3 = this.concreteSingleFt3() * (Math.max(0, +c.count) || 0);
+      const wasteFactor = c.wasteOn ? 1 + (Math.max(0, +c.wastePct) || 0) / 100 : 1;
+      const orderFt3 = rawFt3 * wasteFactor;
+      const bags = {};
+      Object.keys(this.concreteBagYield).forEach(lb => {
+        bags[lb] = Math.ceil(parseFloat((orderFt3 / this.concreteBagYield[lb]).toFixed(6)));
+      });
+      return {
+        rawFt3, rawYd: rawFt3 / 27,
+        orderFt3, orderYd: orderFt3 / 27,
+        orderYdRounded: Math.ceil(parseFloat((orderFt3 / 27 * 10).toFixed(6))) / 10,
+        bags
+      };
+    },
+
+    // --- Calculator picker + multi-line calculators (see js/calculators.js) ---
+    isGenericCalc() { return !!(window.QPE_CALCS && window.QPE_CALCS[this.calcTab]); },
+    calcDef() { return (window.QPE_CALCS && window.QPE_CALCS[this.calcTab]) || null; },
+    calcCurrent() {
+      for (const g of this.calcGroups) { const it = g.items.find(i => i.id === this.calcTab); if (it) return it; }
+      return { id: this.calcTab, label: this.calcTab, icon: 'bi-calculator' };
+    },
+    calcTitle() { return this.calcDef()?.label || this.calcInfo[this.calcTab]?.title || this.calcCurrent().label; },
+    pickCalc(id) { this.calcTab = id; this.calcPickerOpen = false; },
+    bulkGroups() {
+      const groups = [];
+      this.bulkMaterials.forEach(m => {
+        let g = groups.find(x => x.name === m.group);
+        if (!g) { g = { name: m.group, items: [] }; groups.push(g); }
+        g.items.push(m);
+      });
+      return groups;
+    },
+    bulkLabel() { return (this.bulkMaterials.find(m => m.id === this.calc.gravel.material) || this.bulkMaterials[0]).label; },
+    // Coverage + typical-depth hint shown under the Depth field
+    bulkInfo() {
+      const g = this.calc.gravel;
+      const m = this.bulkMaterials.find(x => x.id === g.material) || {};
+      const tpy = +g.tonsPerYd || 0, depth = +g.depth || 0;
+      const sqft = (tpy > 0 && depth > 0) ? Math.round(27 / tpy / (depth / 12)) : 0;
+      return {
+        coverage: sqft ? `1 ton covers about ${sqft.toLocaleString()} sq ft at ${depth} in deep` : '',
+        minNote: m.minDepth ? `typical minimum depth ${m.minDepth} in` : '',
+        below: !!(m.minDepth && depth > 0 && depth < m.minDepth)
+      };
+    },
+    toggleQsel(id) { this.qsel = this.qsel === id ? '' : id; },
+    closeQsel(id) { if (id === undefined || this.qsel === id) this.qsel = ''; },
+    // True while any pop-up is open, so the page behind it can be locked
+    anyModalOpen() {
+      return !!(this.openModal || this.contactModalOpen || this.prefabPickerOpen || this.invoiceModalOpen ||
+        this.calcModalOpen || this.templateManagerOpen || this.confirmMessage || this.noticeMessage || this.colorPickerOpen || this.rateModalOpen || this.onboardingStep > 0);
+    },
+    setBulkMaterial(id) {
+      const m = this.bulkMaterials.find(x => x.id === id);
+      if (!m) return;
+      this.calc.gravel.material = id;
+      this.calc.gravel.name = m.name;
+      this.calc.gravel.tonsPerYd = m.tonsPerYd;
+    },
+    calcLines() {
+      const d = this.calcDef();
+      return d ? d.lines(this.calc[this.calcTab]) : [];
+    },
+    calcLinePrice(l) { return +(this.calc[this.calcTab].prices[l.key]) || 0; },
+    addCalcLine(l) {
+      if (!l.qty) return;
+      this.estimate.costs.materials.push({ name: l.name, qty: l.qty, unitPrice: this.calcLinePrice(l) });
+      const k = this.calcTab + ':' + l.key;
+      this.calcAddedKey = k;
+      setTimeout(() => { if (this.calcAddedKey === k) this.calcAddedKey = ''; }, 1600);
+    },
+    addAllCalcLines() {
+      const lines = this.calcLines();
+      if (!lines.length) return;
+      lines.forEach(l => this.estimate.costs.materials.push({ name: l.name, qty: l.qty, unitPrice: this.calcLinePrice(l) }));
+      this.calcModalOpen = false;
+    },
+
     calcResult() {
       const c = this.calc;
+      if (this.calcTab === 'concrete') {
+        const t = this.concreteTotals();
+        if (c.concrete.orderBy === 'bags') return { qty: t.bags[c.concrete.bagLb] || 0, unitPrice: +(c.concrete.pricePerBag) || 0 };
+        return { qty: t.orderYdRounded || 0, unitPrice: +(c.concrete.pricePerYd) || 0 };
+      }
       if (this.calcTab === 'paint') {
         const wallsNet = Math.max(0, (+c.paint.wallsSqFt || 0) - (+c.paint.doors || 0) * 20 - (+c.paint.windows || 0) * 15);
         const totalSqFt = wallsNet + (+c.paint.ceilingSqFt || 0);
@@ -1064,8 +1513,13 @@ Any additional work beyond the services listed above may incur extra charges.`,
         return { qty: gals || 0, unitPrice: +(c.paint.pricePerGal) || 0 };
       }
       if (this.calcTab === 'gravel') {
-        const yd3 = ((+c.gravel.length || 0) * (+c.gravel.width || 0) * ((+c.gravel.depth || 0) / 12)) / 27;
-        return { qty: Math.ceil(yd3 * 10) / 10 || 0, unitPrice: +(c.gravel.pricePerYd) || 0 };
+        let yd3 = ((+c.gravel.length || 0) * (+c.gravel.width || 0) * ((+c.gravel.depth || 0) / 12)) / 27;
+        if (c.gravel.compactOn) yd3 *= 1 + (Math.max(0, +c.gravel.compactPct) || 0) / 100;
+        if (c.gravel.pricedBy === 'ton') {
+          const tons = yd3 * (+c.gravel.tonsPerYd || 0);
+          return { qty: Math.ceil(parseFloat((tons * 10).toFixed(6))) / 10 || 0, unitPrice: +(c.gravel.pricePerTon) || 0 };
+        }
+        return { qty: Math.ceil(parseFloat((yd3 * 10).toFixed(6))) / 10 || 0, unitPrice: +(c.gravel.pricePerYd) || 0 };
       }
       if (this.calcTab === 'sod') {
         const sqFt = c.sod.mode === 'sqft' ? (+c.sod.sqFtDirect || 0) : (+c.sod.length || 0) * (+c.sod.width || 0);
@@ -1075,6 +1529,9 @@ Any additional work beyond the services listed above may incur extra charges.`,
       if (this.calcTab === 'tile') {
         const base = c.tile.mode === 'sqft' ? (+c.tile.sqFtDirect || 0) : (+c.tile.length || 0) * (+c.tile.width || 0);
         const sqFt = Math.ceil(parseFloat((base * (1 + (+c.tile.waste || 0) / 100)).toFixed(6)));
+        if (c.tile.soldBy === 'box' && (+c.tile.boxSqFt || 0) > 0) {
+          return { qty: Math.ceil(parseFloat((sqFt / +c.tile.boxSqFt).toFixed(6))) || 0, unitPrice: +(c.tile.pricePerBox) || 0 };
+        }
         return { qty: sqFt || 0, unitPrice: +(c.tile.pricePerSqFt) || 0 };
       }
       return { qty: 0, unitPrice: 0 };
@@ -1082,8 +1539,15 @@ Any additional work beyond the services listed above may incur extra charges.`,
     calcResultLabel() {
       const r = this.calcResult();
       const units = { paint: 'gal', gravel: 'cu yd', sod: 'pallets', tile: 'sq ft' };
-      const u = units[this.calcTab] || '';
+      let u = units[this.calcTab] || '';
+      if (this.calcTab === 'gravel' && this.calc.gravel.pricedBy === 'ton') u = 'tons';
+      if (this.calcTab === 'tile' && this.calc.tile.soldBy === 'box') u = 'boxes';
       if (!r.qty) return '—';
+      if (this.calcTab === 'concrete') {
+        const cc = this.calc.concrete;
+        const what = cc.orderBy === 'bags' ? `bags (${cc.bagLb} lb)` : 'cu yd';
+        return `${r.qty} ${what}  ×  ${this.fmt(r.unitPrice)}  =  ${this.fmt(r.qty * r.unitPrice)}`;
+      }
       if (this.calcTab === 'paint') {
         const c = this.calc.paint;
         const wallsNet = Math.max(0, (+c.wallsSqFt || 0) - (+c.doors || 0) * 20 - (+c.windows || 0) * 15);
@@ -1098,7 +1562,14 @@ Any additional work beyond the services listed above may incur extra charges.`,
     addFromCalculator() {
       const r = this.calcResult();
       if (!r.qty) return;
-      this.estimate.costs.materials.push({ name: this.calc[this.calcTab]?.name || '', qty: r.qty, unitPrice: r.unitPrice });
+      let name = this.calc[this.calcTab]?.name || '';
+      if (this.calcTab === 'concrete') {
+        const cc = this.calc.concrete;
+        name = `${name || 'Concrete'} (${cc.orderBy === 'bags' ? cc.bagLb + ' lb bags' : 'cu yd'})`;
+      }
+      if (this.calcTab === 'gravel' && this.calc.gravel.pricedBy === 'ton') name = `${name || 'Gravel'} (tons)`;
+      if (this.calcTab === 'tile' && this.calc.tile.soldBy === 'box') name = `${name || 'Flooring'} (box of ${+this.calc.tile.boxSqFt} sq ft)`;
+      this.estimate.costs.materials.push({ name, qty: r.qty, unitPrice: r.unitPrice });
       this.calcModalOpen = false;
     },
 
@@ -1140,7 +1611,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
     openInvoiceModal() {
       const e = this.estimate;
       if (!e.customerName.trim()) {
-        alert('Please enter a customer name before creating an invoice.');
+        this._notice('Please enter a customer name before creating an invoice.');
         return;
       }
       if (e.invoice) {
@@ -1161,7 +1632,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
       return {
         invoiceNumber: 'INV-' + today.replace(/-/g, ''),
         invoiceDate:   today,
-        notes:         this.settings.termsAndConditions || '',
+        notes:         (this.settings.invoiceTerms ?? this.settings.termsAndConditions) || '',
         deposit:       0,
         costs:         this._cloneCosts(this.estimate.costs)
       };
@@ -1196,7 +1667,7 @@ Any additional work beyond the services listed above may incur extra charges.`,
       const c = isInvoice ? inv.costs : e.costs;
 
       if (!e.customerName.trim()) {
-        alert('Please enter a customer name before generating the PDF.');
+        this._notice('Please enter a customer name before generating the PDF.');
         return;
       }
 

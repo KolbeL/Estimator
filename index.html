@@ -8,7 +8,7 @@
   <style>[x-cloak]{display:none!important}</style>
   <link rel="stylesheet" href="vendor/bootstrap.min.css" />
   <link rel="stylesheet" href="vendor/bootstrap-icons.min.css" />
-  <link rel="stylesheet" href="css/styles.css?v=22" />
+  <link rel="stylesheet" href="css/styles.css?v=36" />
   <script>
   (function(){
     try {
@@ -48,10 +48,12 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="js/firebase-config.js"></script>
   <script src="js/firebase.js"></script>
-  <script src="js/app.js?v=18"></script>
+  <script src="js/calculators.js?v=3"></script>
+  <script src="js/app.js?v=39"></script>
   <script defer src="vendor/alpine.min.js"></script>
 </head>
-<body x-data="estimatorApp()" x-init="init()" x-cloak>
+<body x-data="estimatorApp()" x-init="init()" x-cloak
+  x-effect="document.documentElement.classList.toggle('qpe-scroll-lock', anyModalOpen())">
 
   <!-- Onboarding overlay -->
   <template x-if="onboardingStep > 0">
@@ -90,7 +92,7 @@
         <h5 class="mb-0 fw-bold"><i class="bi bi-tools me-2"></i>What's Your Trade?</h5>
       </div>
       <div class="card-body px-4 py-4" style="overflow-y:auto;">
-        <p class="text-muted small mb-3">Pick your primary trade and we'll set up prefab scope items to get you started fast. You can change this anytime in <strong>Trade Settings</strong>.</p>
+        <p class="text-muted small mb-3">Pick your primary trade and we'll set up scope templates to get you started fast. You can change this anytime in <strong>Settings</strong>.</p>
         <div style="display:grid; grid-template-columns:repeat(3,1fr); grid-auto-rows:80px; gap:0.5rem;" class="mb-3">
           <template x-for="trade in trades" :key="trade.id">
             <button
@@ -153,7 +155,13 @@
           </div>
           <div class="col-12">
             <label class="form-label fw-semibold">Company Logo <span class="text-muted fw-normal">(optional)</span></label>
-            <input type="file" class="form-control" accept="image/*" @change="loadLogo($event)" />
+            <input type="file" accept="image/*" id="logo-input-ob" class="d-none" @change="loadLogo($event)" />
+            <div class="input-group">
+              <button type="button" class="btn btn-outline-secondary" @click="document.getElementById('logo-input-ob').click()"
+                x-text="settings.logo ? 'Change Logo' : 'Choose Logo'"></button>
+              <span class="form-control text-truncate" :class="settings.logo ? '' : 'text-muted'"
+                x-text="settings.logo ? ('✓ ' + (settings.logoName || 'Logo loaded')) : 'No logo chosen'"></span>
+            </div>
             <div class="form-text">Appears top-left on your PDFs.</div>
             <div class="mt-2">
               <template x-if="!settings.logo">
@@ -186,7 +194,7 @@
         <h5 class="mb-0 fw-bold"><i class="bi bi-file-text me-2"></i>Tax &amp; Terms</h5>
       </div>
       <div class="card-body px-4 py-4" style="overflow-y:auto;">
-        <p class="text-muted small mb-3">These appear on every estimate. You can edit them anytime in Settings.</p>
+        <p class="text-muted small mb-3">These appear on your bids and invoices. You can edit them anytime in Settings.</p>
         <div class="mb-3">
           <label class="form-label fw-semibold">Tax Rate <span class="text-muted fw-normal">(leave 0 to disable)</span></label>
           <div class="input-group">
@@ -196,9 +204,14 @@
           </div>
         </div>
         <div class="mb-3">
-          <label class="form-label fw-semibold">Terms &amp; Conditions</label>
-          <textarea class="form-control" x-model="settings.termsAndConditions" rows="8" spellcheck="true" autocorrect="on"></textarea>
-          <div class="form-text">Appears at the bottom of every PDF.</div>
+          <label class="form-label fw-semibold">Bid Terms &amp; Conditions</label>
+          <textarea class="form-control" x-model="settings.termsAndConditions" rows="5" spellcheck="true" autocorrect="on"></textarea>
+          <div class="form-text">Appears at the bottom of every bid PDF.</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Invoice Terms &amp; Conditions</label>
+          <textarea class="form-control" x-model="settings.invoiceTerms" rows="5" spellcheck="true" autocorrect="on"></textarea>
+          <div class="form-text">Pre-filled on every invoice. You can still edit it before exporting each one.</div>
         </div>
         <div class="d-flex justify-content-between align-items-center pt-2 border-top">
           <button class="btn btn-outline-secondary btn-sm" @click="onboardingStep = 3">Back</button>
@@ -291,6 +304,9 @@
           </div>
 
         </div>
+        <div class="px-3 pb-3 small text-muted">
+          <i class="bi bi-info-circle me-1"></i>Note: bids that haven't been saved to the cloud or exported as a PDF will be lost when you open another bid or start a new one.
+        </div>
       </div>
     </div>
   </div>
@@ -331,7 +347,7 @@
     </div>
   </div>
 
-  <!-- Prefab Picker Modal -->
+  <!-- Template Picker Modal -->
   <div x-show="prefabPickerOpen"
     class="position-fixed top-0 start-0 w-100 h-100 modal-overlay"
     style="background:rgba(0,0,0,0.5); z-index:1050;"
@@ -339,22 +355,29 @@
     <div class="card shadow-lg mx-3 d-flex flex-column"
       style="width:100%; max-width:520px; max-height:80vh;">
       <div class="card-header bg-primary-theme d-flex justify-content-between align-items-center py-2">
-        <h6 class="mb-0 fw-bold"><i class="bi bi-lightning me-1"></i>Insert Prefab Scope Item</h6>
+        <h6 class="mb-0 fw-bold"><i class="bi bi-lightning me-1"></i>Insert Scope Template</h6>
         <button @click="prefabPickerOpen = false" class="btn p-0 lh-1" style="color:inherit; opacity:.8; font-size:1.2rem;">
           <i class="bi bi-x-lg"></i>
         </button>
       </div>
       <div class="px-3 pt-3 pb-1 border-bottom d-flex align-items-center gap-2 flex-shrink-0">
         <label class="form-label mb-0 small fw-semibold flex-shrink-0">Trade:</label>
-        <select class="form-select form-select-sm" x-model="prefabPickerTrade">
-          <template x-for="t in tradesWithPrefabs()" :key="t.id">
-            <option :value="t.id" x-text="t.label"></option>
-          </template>
-        </select>
+        <div class="qpe-select flex-grow-1" @click.outside="closeQsel('tpl')" @keydown.escape.stop="closeQsel('tpl')">
+<button type="button" class="form-select form-select-sm text-start qpe-select-btn" @click="toggleQsel('tpl')" :aria-expanded="qsel === 'tpl'">
+  <span x-text="(tradesWithPrefabs().find(t => t.id === prefabPickerTrade) || {}).label || 'Select a trade'"></span>
+</button>
+<div class="qpe-select-menu" x-show="qsel === 'tpl'">
+<template x-for="t in tradesWithPrefabs()" :key="t.id">
+<button type="button" class="qpe-select-opt" :class="prefabPickerTrade === t.id ? 'active' : ''" @click="prefabPickerTrade = t.id; closeQsel()">
+  <span x-text="t.label"></span><i class="bi bi-check2" x-show="prefabPickerTrade === t.id"></i>
+</button>
+</template>
+</div>
+</div>
       </div>
       <div class="overflow-auto p-3">
         <div x-show="tradesWithPrefabs().length === 0" class="text-muted small text-center py-4">
-          No prefab items yet — add some in <strong>Trade Settings</strong>.
+          No templates yet. Tap <strong>Manage templates</strong> to add some.
         </div>
         <div x-show="prefabPickerTrade && !settings.prefabScopeItems.some(i => i.tradeId === prefabPickerTrade && (i.title || i.description))" class="text-muted small text-center py-4">
           No items for this trade yet.
@@ -371,38 +394,114 @@
           </div>
         </template>
       </div>
+      <div class="card-footer text-center py-1 flex-shrink-0">
+        <button type="button" class="btn btn-link btn-sm text-decoration-none" @click="prefabPickerOpen = false; openTemplateManager()">
+          <i class="bi bi-gear me-1"></i>Manage templates
+        </button>
+      </div>
     </div>
   </div>
 
-  <!-- Navbar -->
-  <nav class="navbar px-3 py-2 mb-4"
-    :class="isLightColor(settings.primaryColor || '#3D5A99') ? 'navbar-light' : 'navbar-dark'">
-    <span class="navbar-brand fw-bold fs-5 d-flex align-items-center gap-2">
-      <img src="img/q-logo.png" alt="" id="q-nav-logo" style="height:24px; width:auto;"
-           onerror="this.style.display='none';document.getElementById('q-nav-nologotxt').style.display=''" />
-      <span id="q-nav-nologotxt" style="display:none;font-size:.6rem;opacity:.8;border:1px solid rgba(255,255,255,.5);border-radius:3px;padding:1px 6px;">No Logo</span>
-      Quick Project Estimator
-    </span>
-    <div class="d-flex gap-2">
-      <button class="btn btn-outline-light btn-sm nav-btn"
-        :class="currentView === 'estimator' ? 'active' : ''"
-        @click="currentView === 'estimator' ? newEstimate() : (currentView = 'estimator')">
-        <i class="bi bi-file-earmark-text me-1"></i>New
-      </button>
-      <input type="file" x-ref="openInput" accept=".pdf" class="d-none" @change="openEstimatePDF($event)" />
-      <button class="btn btn-outline-light btn-sm nav-btn" @click="openEstimateModal()">
-        <i class="bi bi-folder2-open me-1"></i>Open
-      </button>
-      <button class="btn btn-outline-light btn-sm nav-btn"
-        :class="currentView === 'tradeSettings' ? 'active' : ''"
-        @click="currentView = 'tradeSettings'">
-        <i class="bi bi-tools me-1"></i>Trade
-      </button>
-      <button class="btn btn-outline-light btn-sm nav-btn"
-        :class="currentView === 'settings' ? 'active' : ''"
-        @click="currentView = 'settings'">
-        <i class="bi bi-gear me-1"></i>Settings
-      </button>
+  <!-- Template Manager Modal: add, edit and remove scope templates per trade -->
+  <div x-show="templateManagerOpen"
+    class="position-fixed top-0 start-0 w-100 h-100 modal-overlay"
+    style="background:rgba(0,0,0,0.5); z-index:1050;"
+    @click.self="closeTemplateManager()">
+    <div class="card shadow-lg mx-3 d-flex flex-column"
+      style="width:100%; max-width:600px; max-height:86vh;">
+      <div class="card-header bg-primary-theme d-flex justify-content-between align-items-center py-2">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-lightning me-1"></i>Scope Templates</h6>
+        <button @click="closeTemplateManager()" class="btn p-0 lh-1" style="color:inherit; opacity:.8; font-size:1.2rem;" aria-label="Close">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+      <div class="px-3 pt-3 pb-2 border-bottom d-flex align-items-center gap-2 flex-shrink-0">
+        <label class="form-label mb-0 small fw-semibold flex-shrink-0">Trade:</label>
+        <div class="qpe-select flex-grow-1" @click.outside="closeQsel('tm')" @keydown.escape.stop="closeQsel('tm')">
+<button type="button" class="form-select form-select-sm text-start qpe-select-btn" @click="toggleQsel('tm')" :aria-expanded="qsel === 'tm'">
+  <i class="bi me-2" :class="(trades.find(t => t.id === templateTrade) || {}).icon"></i><span x-text="(trades.find(t => t.id === templateTrade) || {}).label || 'Select a trade'"></span>
+</button>
+<div class="qpe-select-menu" x-show="qsel === 'tm'">
+<template x-for="t in trades" :key="t.id">
+<button type="button" class="qpe-select-opt" :class="templateTrade === t.id ? 'active' : ''" @click="templateTrade = t.id; closeQsel()">
+  <span><i class="bi me-2" :class="t.icon"></i><span x-text="t.label"></span></span><i class="bi bi-check2" x-show="templateTrade === t.id"></i>
+</button>
+</template>
+</div>
+</div>
+      </div>
+      <div class="overflow-auto p-3" x-ref="tmList">
+        <p class="text-muted small mb-3">Templates are saved per trade. In any estimate, tap <strong>Insert Template</strong> in the Scope of Work header to pull one in.</p>
+        <div x-show="!templateTrade" class="text-muted text-center py-3 small">Choose a trade above to see its templates.</div>
+        <div x-show="templateTrade && !settings.prefabScopeItems.some(i => i.tradeId === templateTrade)" class="text-muted text-center py-2 small">
+          No templates yet. Tap <strong>Add Template</strong> to create your first.
+        </div>
+        <template x-for="item in settings.prefabScopeItems.filter(i => i.tradeId === templateTrade)" :key="item._id">
+          <div class="d-flex align-items-start gap-2 mb-3">
+            <div class="flex-grow-1">
+              <input type="text" class="form-control form-control-sm mb-1" x-model="item.title"
+                :placeholder="tradePlaceholders().title" spellcheck="true" autocorrect="on" />
+              <textarea class="form-control form-control-sm" rows="2" x-model="item.description"
+                :placeholder="tradePlaceholders().desc" spellcheck="true" autocorrect="on"></textarea>
+            </div>
+            <button class="btn btn-outline-danger btn-sm" @click="removePrefabItem(item._id)" title="Delete template" aria-label="Delete template">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        </template>
+      </div>
+      <div class="card-footer d-flex justify-content-between align-items-center gap-2 flex-shrink-0">
+        <button class="btn btn-outline-secondary btn-sm" :disabled="!templateTrade"
+          @click="addPrefabItem(templateTrade); $nextTick(() => { $refs.tmList.scrollTop = $refs.tmList.scrollHeight; })">
+          <i class="bi bi-plus-circle me-1"></i>Add Template
+        </button>
+        <button class="btn btn-success btn-sm px-4" @click="closeTemplateManager()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Header: brand + settings gear (scrolls away), then the current estimate with New / Open (locks at the top) -->
+  <nav class="navbar qpe-header px-3 py-2 mb-4"
+    :class="[isLightColor(settings.primaryColor || '#3D5A99') ? 'navbar-light' : 'navbar-dark', keyboardOpen ? 'kb-open' : '']">
+    <div class="w-100">
+      <div class="d-flex align-items-center justify-content-between gap-2 qpe-nav-row1">
+        <span class="navbar-brand fw-bold fs-5 d-flex align-items-center gap-2 m-0">
+          <img src="img/q-logo.png" alt="" id="q-nav-logo" style="height:24px; width:auto;"
+               onerror="this.style.display='none';document.getElementById('q-nav-nologotxt').style.display=''" />
+          <span id="q-nav-nologotxt" style="display:none;font-size:.6rem;opacity:.8;border:1px solid rgba(255,255,255,.5);border-radius:3px;padding:1px 6px;">No Logo</span>
+          Quick Project Estimator
+        </span>
+        <button type="button" class="btn btn-outline-light btn-sm nav-btn qpe-nav-gear flex-shrink-0"
+          :class="currentView === 'settings' ? 'active' : ''"
+          x-tap="openSettings()" aria-label="Settings" title="Settings">
+          <i class="bi bi-gear"></i>
+        </button>
+      </div>
+      <div class="d-flex align-items-center gap-2 mt-1">
+        <div class="flex-grow-1 d-flex align-items-center qpe-nav-row2" style="min-width:0;">
+          <button type="button" class="btn btn-outline-light btn-sm nav-btn" x-show="currentView === 'settings'"
+            x-tap="currentView = 'estimator'">
+            <i class="bi bi-arrow-left me-1"></i>Back to estimate
+          </button>
+          <div class="qpe-nav-project" x-show="currentView !== 'settings'"
+            :class="navProjectEmpty() ? 'is-empty' : ''" :title="navProjectLabel()" x-text="navProjectLabel()"
+            x-tap="window.scrollTo({ top: 0, behavior: 'smooth' })"></div>
+          <i class="bi bi-chevron-up ms-1 flex-shrink-0" x-show="headerStuck && currentView !== 'settings'"
+            style="font-size:.7rem; opacity:.7;"></i>
+        </div>
+        <input type="file" x-ref="openInput" accept=".pdf" class="d-none" @change="openEstimatePDF($event)" />
+        <button class="btn btn-outline-light btn-sm nav-btn flex-shrink-0" x-tap="newEstimate()">
+          <i class="bi bi-file-earmark-plus me-1"></i>New
+        </button>
+        <button class="btn btn-outline-light btn-sm nav-btn flex-shrink-0" x-tap="openEstimateModal()">
+          <i class="bi bi-folder2-open me-1"></i>Open
+        </button>
+        <button type="button" class="btn btn-outline-light btn-sm nav-btn qpe-stuck-gear flex-shrink-0" x-show="headerStuck"
+          :class="currentView === 'settings' ? 'active' : ''"
+          x-tap="openSettings()" aria-label="Settings" title="Settings">
+          <i class="bi bi-gear"></i>
+        </button>
+      </div>
     </div>
   </nav>
 
@@ -484,7 +583,7 @@
               <div class="d-flex flex-column flex-md-row align-items-start gap-1 pt-1">
                 <button class="btn btn-sm px-2"
                   :class="isItemSavedAsPrefab(item) ? 'btn-success' : 'btn-outline-secondary'"
-                  :title="!settings.selectedTrade ? 'Select a trade first' : !item.title ? 'Add a title first' : isItemSavedAsPrefab(item) ? 'Already saved as prefab' : 'Save as prefab'"
+                  :title="!settings.selectedTrade ? 'Select a trade first' : !item.title ? 'Add a title first' : isItemSavedAsPrefab(item) ? 'Already saved as template' : 'Save as template'"
                   :disabled="!item.title || !settings.selectedTrade || isItemSavedAsPrefab(item)"
                   @click="saveAsPrefab(item)">
                   <i class="bi" :class="isItemSavedAsPrefab(item) ? 'bi-check2-square' : 'bi-plus-square'"></i>
@@ -503,7 +602,7 @@
           </button>
           <button class="btn btn-outline-secondary btn-sm" @click="openPrefabPicker()"
             x-show="settings.prefabScopeItems.some(i => i.title || i.description)">
-            <i class="bi bi-lightning me-1"></i>Insert Prefab
+            <i class="bi bi-lightning me-1"></i>Insert Template
           </button>
         </div>
       </div>
@@ -1060,7 +1159,7 @@
                 <i class="bi bi-moon me-1"></i>Dark
               </label>
             </div>
-            <div class="form-text mb-3">Applies immediately; saved with Settings.</div>
+            <div class="form-text mb-3">Applies immediately.</div>
           </div>
 
           <!-- Logo + T&C -->
@@ -1068,8 +1167,13 @@
             <h6 class="text-muted text-uppercase small fw-bold mb-3">Branding</h6>
             <div class="mb-3">
               <label class="form-label">Company Logo</label>
-              <input type="file" class="form-control" accept="image/*"
-                id="logo-input" @change="loadLogo($event)" />
+              <input type="file" accept="image/*" id="logo-input" class="d-none" @change="loadLogo($event)" />
+            <div class="input-group">
+              <button type="button" class="btn btn-outline-secondary" @click="document.getElementById('logo-input').click()"
+                x-text="settings.logo ? 'Change Logo' : 'Choose Logo'"></button>
+              <span class="form-control text-truncate" :class="settings.logo ? '' : 'text-muted'"
+                x-text="settings.logo ? ('✓ ' + (settings.logoName || 'Logo loaded')) : 'No logo chosen'"></span>
+            </div>
               <div class="form-text">Appears top-left on the PDF.</div>
               <div class="mt-2">
                 <template x-if="!settings.logo">
@@ -1089,118 +1193,63 @@
               </div>
             </div>
 
-            <h6 class="text-muted text-uppercase small fw-bold mb-3 mt-4">Terms &amp; Conditions</h6>
             <div class="mb-3">
-              <textarea class="form-control" x-model="settings.termsAndConditions" rows="9"
-                spellcheck="true" autocorrect="on"></textarea>
-              <div class="form-text">Appears at the bottom of every PDF.</div>
-            </div>
-          </div>
-
-        </div>
-
-        <div class="d-flex align-items-center justify-content-between gap-3 mt-3 pt-3 border-top flex-wrap row-gap-2">
-          <div class="d-flex gap-2 flex-wrap">
-            <a href="https://venmo.com/SodaMoneyPls" target="_blank" rel="noopener"
-              class="btn btn-outline-secondary btn-sm">
-              🥤 Buy Me a Soda
-            </a>
-            <button class="btn btn-outline-secondary btn-sm" @click="contactModalOpen = true">
-              <i class="bi bi-envelope me-1"></i>Request Feature / Report Issue
-            </button>
-          </div>
-          <div class="d-flex align-items-center gap-3">
-            <span x-show="settingsSaved" class="text-success small fw-semibold">
-              <i class="bi bi-check-circle me-1"></i>Settings saved!
-            </span>
-            <button class="btn btn-success" @click="saveSettings()">
-              <i class="bi bi-floppy me-1"></i>Save Settings
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="text-center text-muted small py-2" x-show="currentView === 'settings' || currentView === 'tradeSettings'" style="opacity:0.5;">&copy; 2026 SodaMoney. All rights reserved.</div>
-  <!-- end settings view -->
-
-  <!-- ===================== TRADE SETTINGS VIEW ===================== -->
-  <div x-show="currentView === 'tradeSettings'" class="container py-2" style="max-width:860px;">
-
-    <!-- Trade Selector -->
-    <div class="card mb-3">
-      <div class="card-header bg-primary-theme py-2">
-        <h6 class="mb-0"><i class="bi bi-tools me-1"></i>Your Trade</h6>
-      </div>
-      <div class="card-body">
-        <p class="text-muted small mb-3">Select your primary trade. This helps personalize the app for your type of work.</p>
-        <div style="display:grid; grid-template-columns:repeat(3,1fr); grid-auto-rows:88px; gap:0.5rem;">
-          <template x-for="trade in trades" :key="trade.id">
-            <button
-              class="btn py-3 d-flex flex-column align-items-center justify-content-center gap-1"
-              style="height:100%"
-              :class="settings.selectedTrade === trade.id ? 'btn-success' : 'btn-outline-secondary'"
-              @click="selectTrade(trade.id)">
-              <i class="bi fs-4" :class="trade.icon"></i>
-              <span class="small fw-semibold" x-text="trade.label"></span>
-            </button>
-          </template>
-        </div>
-      </div>
-    </div>
-
-    <!-- Prefab Scope Items -->
-    <div class="card mb-3">
-      <div class="card-header bg-primary-theme py-2 d-flex justify-content-between align-items-center">
-        <h6 class="mb-0"><i class="bi bi-lightning me-1"></i>Prefab Scope Items</h6>
-        <button class="btn btn-light btn-sm py-0 px-2" @click="addPrefabItem()">
-          <i class="bi bi-plus-circle me-1"></i>Add Item
-        </button>
-      </div>
-      <div class="card-body">
-        <p class="text-muted small mb-3">Scope items saved here are tied to the selected trade. In any estimate, tap <strong>Insert Prefab</strong> in the Scope of Work header to pull one in instantly.</p>
-        <div x-show="!settings.selectedTrade" class="text-muted text-center py-3 small">
-          Select a trade above to manage its prefab items.
-        </div>
-        <div x-show="settings.selectedTrade && !settings.prefabScopeItems.some(i => i.tradeId === settings.selectedTrade)" class="text-muted text-center py-2 small">
-          No items yet — click <strong>Add Item</strong> to create your first.
-        </div>
-        <template x-for="item in settings.prefabScopeItems.filter(i => i.tradeId === settings.selectedTrade)" :key="item._id">
-          <div class="d-flex align-items-start gap-2 mb-2">
-            <div class="flex-grow-1">
-              <div class="row g-2">
-                <div class="col-12 col-md-4">
-                  <input type="text" class="form-control form-control-sm" x-model="item.title"
-                    :placeholder="tradePlaceholders().title" spellcheck="true" autocorrect="on" />
-                </div>
-                <div class="col-12 col-md">
-                  <input type="text" class="form-control form-control-sm" x-model="item.description"
-                    :placeholder="tradePlaceholders().desc" spellcheck="true" autocorrect="on" />
-                </div>
+              <label class="form-label">Your Trade</label>
+              <div class="d-flex">
+                <div class="qpe-select flex-grow-1" @click.outside="closeQsel('trade')" @keydown.escape.stop="closeQsel('trade')">
+<button type="button" class="form-select text-start qpe-select-btn" @click="toggleQsel('trade')" :aria-expanded="qsel === 'trade'">
+  <i class="bi me-2" :class="(trades.find(t => t.id === settings.selectedTrade) || {}).icon"></i><span x-text="(trades.find(t => t.id === settings.selectedTrade) || {}).label || 'Select a trade'"></span>
+</button>
+<div class="qpe-select-menu" x-show="qsel === 'trade'">
+<template x-for="t in trades" :key="t.id">
+<button type="button" class="qpe-select-opt" :class="settings.selectedTrade === t.id ? 'active' : ''" @click="selectTrade(t.id); closeQsel()">
+  <span><i class="bi me-2" :class="t.icon"></i><span x-text="t.label"></span></span><i class="bi bi-check2" x-show="settings.selectedTrade === t.id"></i>
+</button>
+</template>
+</div>
+</div>
               </div>
             </div>
-            <div class="pt-1">
-              <button class="btn btn-outline-danger btn-sm" @click="removePrefabItem(item._id)" title="Remove">
-                <i class="bi bi-trash"></i>
-              </button>
+            <div class="mb-3">
+              <label class="form-label">Trade Templates</label>
+              <div>
+                <button type="button" class="btn btn-success btn-sm" @click="openTemplateManager()">
+                  <i class="bi bi-pencil-square me-1"></i>Edit Templates
+                </button>
+              </div>
+            </div>
+
+            <h6 class="text-muted text-uppercase small fw-bold mb-3 mt-4">Bid Terms &amp; Conditions</h6>
+            <div class="mb-3">
+              <textarea class="form-control" x-model="settings.termsAndConditions" rows="7"
+                spellcheck="true" autocorrect="on"></textarea>
+              <div class="form-text">Appears at the bottom of every bid PDF.</div>
+            </div>
+
+            <h6 class="text-muted text-uppercase small fw-bold mb-3 mt-4">Invoice Terms &amp; Conditions</h6>
+            <div class="mb-3">
+              <textarea class="form-control" x-model="settings.invoiceTerms" rows="7"
+                spellcheck="true" autocorrect="on"></textarea>
+              <div class="form-text">Pre-filled on every invoice. You can still edit it before exporting each one.</div>
             </div>
           </div>
-        </template>
+
+        </div>
+
+        <div class="d-flex gap-2 mt-3 pt-3 border-top">
+          <a href="https://venmo.com/SodaMoneyPls" target="_blank" rel="noopener"
+            class="btn btn-outline-secondary btn-sm flex-fill">
+            🥤 Buy Me a Soda
+          </a>
+          <button class="btn btn-outline-secondary btn-sm flex-fill" @click="contactModalOpen = true">
+            <i class="bi bi-envelope me-1"></i>Feedback
+          </button>
+        </div>
       </div>
     </div>
-
-    <!-- Save -->
-    <div class="d-flex justify-content-end align-items-center gap-3 mb-5">
-      <span x-show="settingsSaved" class="text-success small fw-semibold">
-        <i class="bi bi-check-circle me-1"></i>Saved!
-      </span>
-      <button class="btn btn-success" @click="saveSettings()">
-        <i class="bi bi-floppy me-1"></i>Save Trade Settings
-      </button>
-    </div>
-
   </div>
-  <!-- end trade settings view -->
+  <div class="text-center text-muted small py-2" x-show="currentView === 'settings'" style="opacity:0.5;">&copy; 2026 SodaMoney. All rights reserved.</div>
+  <!-- end settings view -->
 
   <!-- Invoice Modal: edit costs for this invoice, then save to the bid + export -->
   <div x-show="invoiceModalOpen"
@@ -1372,36 +1421,85 @@
         </button>
       </div>
       <div class="d-flex flex-column overflow-hidden">
-        <ul class="nav nav-tabs px-1 pt-2 flex-shrink-0 calc-tabs">
-          <li class="nav-item">
-            <button class="nav-link" :class="calcTab === 'paint'  ? 'active' : ''" @click="calcTab = 'paint'">
-              <i class="bi bi-brush me-1"></i>Paint
-            </button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" :class="calcTab === 'gravel' ? 'active' : ''" @click="calcTab = 'gravel'">
-              <i class="bi bi-layers me-1"></i>Gravel
-            </button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" :class="calcTab === 'sod'    ? 'active' : ''" @click="calcTab = 'sod'">
-              <i class="bi bi-tree me-1"></i>Sod
-            </button>
-          </li>
-          <li class="nav-item">
-            <button class="nav-link" :class="calcTab === 'tile'   ? 'active' : ''" @click="calcTab = 'tile'">
-              <i class="bi bi-grid me-1"></i>Flooring
-            </button>
-          </li>
-        </ul>
-        <div class="p-3 overflow-auto">
+        <div class="px-3 pt-3 flex-shrink-0">
+          <button type="button" class="btn btn-outline-secondary w-100 d-flex align-items-center justify-content-between"
+            @click="calcPickerOpen = !calcPickerOpen" :aria-expanded="calcPickerOpen">
+            <span><i class="bi me-2" :class="calcCurrent().icon"></i><strong x-text="calcCurrent().label"></strong></span>
+            <span class="small text-muted">Change calculator <i class="bi ms-1" :class="calcPickerOpen ? 'bi-chevron-up' : 'bi-chevron-down'"></i></span>
+          </button>
+          <div x-show="calcPickerOpen" class="border rounded p-2 mt-2 calc-picker calc-scroll" style="max-height:45vh; overflow-y:auto;">
+            <template x-for="g in calcGroups" :key="g.name">
+              <div class="mb-2">
+                <div class="text-muted small fw-semibold mb-1" x-text="g.name"></div>
+                <div class="row g-2">
+                  <template x-for="it in g.items" :key="it.id">
+                    <div class="col-4">
+                      <button type="button" class="btn btn-sm w-100 py-2 px-1 lh-sm"
+                        :class="calcTab === it.id ? 'btn-secondary' : 'btn-outline-secondary'"
+                        @click="pickCalc(it.id)">
+                        <i class="bi d-block fs-5 mb-1" :class="it.icon"></i>
+                        <span class="d-block" style="font-size:0.7rem;" x-text="it.label"></span>
+                      </button>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+        <div class="p-3 overflow-auto calc-scroll">
+
+          <!-- Bulk material picker (Gravel & Bulk) sits above the name -->
+          <div class="mb-3" x-show="calcTab === 'gravel'">
+            <label class="form-label fw-semibold small mb-1">Material</label>
+            <div class="qpe-select" @click.outside="closeQsel('bulk')" @keydown.escape.stop="closeQsel('bulk')">
+<button type="button" class="form-select form-select-sm text-start qpe-select-btn" @click="toggleQsel('bulk')" :aria-expanded="qsel === 'bulk'">
+  <span x-text="bulkLabel()"></span>
+</button>
+<div class="qpe-select-menu" x-show="qsel === 'bulk'">
+<template x-for="g in bulkGroups()" :key="g.name">
+<div>
+  <div class="qpe-select-group" x-text="g.name"></div>
+  <template x-for="m in g.items" :key="m.id">
+<button type="button" class="qpe-select-opt" :class="calc.gravel.material === m.id ? 'active' : ''" @click="setBulkMaterial(m.id); closeQsel()">
+  <span x-text="m.label"></span><i class="bi bi-check2" x-show="calc.gravel.material === m.id"></i>
+</button>
+  </template>
+</div>
+</template>
+</div>
+</div>
+          </div>
 
           <!-- Material name -->
           <div class="mb-3">
-            <label class="form-label fw-semibold small mb-1">Material Name</label>
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label fw-semibold small mb-0" x-text="isGenericCalc() ? calcTitle() : 'Material Name'">Material Name</label>
+              <button type="button" class="btn btn-sm py-0 px-2 calc-info-btn"
+                :class="calcInfoOpen ? 'btn-secondary' : 'btn-outline-secondary'"
+                @click="calcInfoOpen = !calcInfoOpen"
+                :aria-expanded="calcInfoOpen" aria-label="How this is calculated">
+                <i class="bi bi-info-circle me-1"></i>How it's calculated
+              </button>
+            </div>
+            <div x-show="calcInfoOpen" class="border rounded p-2 mb-2 small bg-light calc-info">
+              <div class="fw-bold mb-1" x-text="'How ' + calcTitle() + ' is calculated'"></div>
+              <template x-for="sec in calcInfoSections()" :key="sec.heading">
+                <div class="mt-2">
+                  <div class="text-muted fw-semibold" x-text="sec.heading"></div>
+                  <div x-show="sec.text" x-text="sec.text"></div>
+                  <ul class="mb-0 ps-3" x-show="sec.items && sec.items.length">
+                    <template x-for="(it, i) in (sec.items || [])" :key="i">
+                      <li x-text="it"></li>
+                    </template>
+                  </ul>
+                </div>
+              </template>
+            </div>
             <input type="text" class="form-control form-control-sm"
+              x-show="!isGenericCalc()"
               x-model="calc[calcTab].name"
-              placeholder="e.g. Exterior Paint – White" />
+              :placeholder="calcTab === 'concrete' ? 'e.g. 4000 PSI Concrete – Driveway' : 'e.g. Exterior Paint – White'" />
           </div>
 
           <!-- Paint inputs -->
@@ -1443,7 +1541,7 @@
             </div>
           </div>
 
-          <!-- Gravel inputs -->
+          <!-- Gravel & bulk material inputs -->
           <div x-show="calcTab === 'gravel'">
             <div class="row g-2">
               <div class="col-6">
@@ -1458,9 +1556,49 @@
                 <label class="form-label small mb-1">Depth (inches)</label>
                 <input type="number" class="form-control form-control-sm" x-model.number="calc.gravel.depth" min="0.5" step="0.5" @focus="$event.target.select()" />
               </div>
-              <div class="col-6">
+              <div class="col-12 small text-muted" x-show="bulkInfo().coverage || bulkInfo().minNote">
+                <span x-text="bulkInfo().coverage"></span>
+                <span x-show="bulkInfo().minNote" :class="bulkInfo().below ? 'text-warning fw-semibold' : ''"
+                  x-text="(bulkInfo().coverage ? ' · ' : '') + bulkInfo().minNote + (bulkInfo().below ? ' (yours is less)' : '')"></span>
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 mt-3">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="gravel-compact" x-model="calc.gravel.compactOn" />
+                <label class="form-check-label small" for="gravel-compact">Compacted base</label>
+              </div>
+              <div class="input-group input-group-sm ms-auto" style="width:7rem;" x-show="calc.gravel.compactOn">
+                <input type="number" class="form-control" x-model.number="calc.gravel.compactPct" min="0" max="100" step="1" @focus="$event.target.select()" />
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+            <div class="small text-muted mt-1" x-show="calc.gravel.compactOn">
+              Adds <span x-text="(+calc.gravel.compactPct || 0)"></span>% extra loose material so you end up with the depth you entered after compacting.
+            </div>
+            <div class="btn-group btn-group-sm mt-3 mb-2 w-100" role="group">
+              <button type="button" class="btn"
+                :class="calc.gravel.pricedBy === 'yd' ? 'btn-secondary' : 'btn-outline-secondary'"
+                @click="calc.gravel.pricedBy = 'yd'">
+                <i class="bi bi-box me-1"></i>Priced per Cu Yd
+              </button>
+              <button type="button" class="btn"
+                :class="calc.gravel.pricedBy === 'ton' ? 'btn-secondary' : 'btn-outline-secondary'"
+                @click="calc.gravel.pricedBy = 'ton'">
+                <i class="bi bi-speedometer me-1"></i>Priced per Ton
+              </button>
+            </div>
+            <div class="row g-2">
+              <div class="col-6" x-show="calc.gravel.pricedBy === 'ton'">
+                <label class="form-label small mb-1">Tons per Cu Yd</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.gravel.tonsPerYd" min="0" step="any" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6" x-show="calc.gravel.pricedBy === 'yd'">
                 <label class="form-label small mb-1">Price per Cu Yd ($)</label>
                 <input type="number" class="form-control form-control-sm" x-model.number="calc.gravel.pricePerYd" x-money="calc.gravel.pricePerYd" min="0" step="0.01" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6" x-show="calc.gravel.pricedBy === 'ton'">
+                <label class="form-label small mb-1">Price per Ton ($)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.gravel.pricePerTon" x-money="calc.gravel.pricePerTon" min="0" step="0.01" @focus="$event.target.select()" />
               </div>
             </div>
           </div>
@@ -1534,15 +1672,215 @@
                 <label class="form-label small mb-1">Waste % (overage)</label>
                 <input type="number" class="form-control form-control-sm" x-model.number="calc.tile.waste" min="0" max="50" step="1" @focus="$event.target.select()" />
               </div>
-              <div class="col-6">
+              <div class="col-6" x-show="calc.tile.soldBy === 'sqft'">
                 <label class="form-label small mb-1">Price per Sq Ft ($)</label>
                 <input type="number" class="form-control form-control-sm" x-model.number="calc.tile.pricePerSqFt" x-money="calc.tile.pricePerSqFt" min="0" step="0.01" @focus="$event.target.select()" />
               </div>
+              <div class="col-6" x-show="calc.tile.soldBy === 'box'">
+                <label class="form-label small mb-1">Sq Ft per Box</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.tile.boxSqFt" min="0" step="any" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6" x-show="calc.tile.soldBy === 'box'">
+                <label class="form-label small mb-1">Price per Box ($)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.tile.pricePerBox" x-money="calc.tile.pricePerBox" min="0" step="0.01" @focus="$event.target.select()" />
+              </div>
+            </div>
+            <div class="btn-group btn-group-sm mt-2 w-100" role="group">
+              <button type="button" class="btn"
+                :class="calc.tile.soldBy === 'sqft' ? 'btn-secondary' : 'btn-outline-secondary'"
+                @click="calc.tile.soldBy = 'sqft'">Sold by Sq Ft</button>
+              <button type="button" class="btn"
+                :class="calc.tile.soldBy === 'box' ? 'btn-secondary' : 'btn-outline-secondary'"
+                @click="calc.tile.soldBy = 'box'"><i class="bi bi-box-seam me-1"></i>Sold by Box</button>
+            </div>
+          </div>
+
+          <!-- Concrete inputs -->
+          <div x-show="calcTab === 'concrete'">
+            <!-- Shape picker -->
+            <div class="row g-2 mb-2">
+              <template x-for="s in concreteShapes" :key="s.id">
+                <div class="col-3">
+                  <button type="button" class="btn btn-sm w-100 py-2 px-1 lh-sm concrete-shape"
+                    :class="calc.concrete.shape === s.id ? 'btn-secondary' : 'btn-outline-secondary'"
+                    @click="calc.concrete.shape = s.id">
+                    <i class="bi d-block fs-5 mb-1" :class="s.icon"></i>
+                    <span class="d-block" style="font-size:0.7rem;" x-text="s.label"></span>
+                  </button>
+                </div>
+              </template>
+            </div>
+            <div class="small text-muted mb-2" x-text="concreteShape().hint"></div>
+
+            <!-- Shape dimensions -->
+            <div class="row g-2">
+              <template x-for="f in concreteShape().fields" :key="calc.concrete.shape + f.key">
+                <div class="col-6">
+                  <label class="form-label small mb-1" x-text="f.label"></label>
+                  <input type="number" class="form-control form-control-sm"
+                    x-model.number="calc.concrete[calc.concrete.shape][f.key]"
+                    min="0" :step="f.step || 'any'" inputmode="decimal" @focus="$event.target.select()" />
+                </div>
+              </template>
+              <div class="col-6">
+                <label class="form-label small mb-1"># of Pours <span class="text-muted fw-normal">(identical)</span></label>
+                <input type="number" class="form-control form-control-sm"
+                  x-model.number="calc.concrete.count" min="1" step="1" @focus="$event.target.select()" />
+              </div>
+            </div>
+
+            <!-- Waste -->
+            <div class="d-flex align-items-center gap-2 mt-3">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="concrete-waste" x-model="calc.concrete.wasteOn" />
+                <label class="form-check-label small" for="concrete-waste">Add waste / overage</label>
+              </div>
+              <div class="input-group input-group-sm ms-auto" style="width:7rem;" x-show="calc.concrete.wasteOn">
+                <input type="number" class="form-control" x-model.number="calc.concrete.wastePct" min="0" max="50" step="1" @focus="$event.target.select()" />
+                <span class="input-group-text">%</span>
+              </div>
+            </div>
+
+            <!-- Volume + bag counts -->
+            <div class="border rounded p-2 mt-3">
+              <div class="d-flex justify-content-between small">
+                <span class="text-muted">Volume</span>
+                <span><strong x-text="concreteTotals().rawFt3.toFixed(2)"></strong> cu ft
+                  &nbsp;·&nbsp; <strong x-text="concreteTotals().rawYd.toFixed(2)"></strong> cu yd</span>
+              </div>
+              <div class="d-flex justify-content-between small mt-1" x-show="calc.concrete.wasteOn">
+                <span class="text-muted">With <span x-text="(+calc.concrete.wastePct || 0)"></span>% waste</span>
+                <span><strong x-text="concreteTotals().orderFt3.toFixed(2)"></strong> cu ft
+                  &nbsp;·&nbsp; <strong x-text="concreteTotals().orderYd.toFixed(2)"></strong> cu yd</span>
+              </div>
+              <div class="text-muted small mt-2 mb-1">Bags of premix needed</div>
+              <div class="row g-1 text-center">
+                <template x-for="lb in [40, 50, 60, 80]" :key="lb">
+                  <div class="col-3">
+                    <div class="border rounded py-1" :class="calc.concrete.orderBy === 'bags' && calc.concrete.bagLb === lb ? 'border-success' : ''">
+                      <div class="fw-bold" x-text="concreteTotals().bags[lb]"></div>
+                      <div class="text-muted" style="font-size:0.7rem;" x-text="lb + ' lb'"></div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- How it gets added to Materials -->
+            <div class="btn-group btn-group-sm mt-3 mb-2 w-100" role="group">
+              <button type="button" class="btn"
+                :class="calc.concrete.orderBy === 'readymix' ? 'btn-secondary' : 'btn-outline-secondary'"
+                @click="calc.concrete.orderBy = 'readymix'">
+                <i class="bi bi-truck me-1"></i>Ready-mix (cu yd)
+              </button>
+              <button type="button" class="btn"
+                :class="calc.concrete.orderBy === 'bags' ? 'btn-secondary' : 'btn-outline-secondary'"
+                @click="calc.concrete.orderBy = 'bags'">
+                <i class="bi bi-bag me-1"></i>Bagged mix
+              </button>
+            </div>
+            <div class="row g-2">
+              <div class="col-6" x-show="calc.concrete.orderBy === 'readymix'">
+                <label class="form-label small mb-1">Price per Cu Yd ($)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.concrete.pricePerYd" x-money="calc.concrete.pricePerYd" min="0" step="0.01" @focus="$event.target.select()" />
+              </div>
+              <div class="col-6" x-show="calc.concrete.orderBy === 'bags'">
+                <label class="form-label small mb-1">Bag Size</label>
+                <div class="qpe-select" @click.outside="closeQsel('bag')" @keydown.escape.stop="closeQsel('bag')">
+<button type="button" class="form-select form-select-sm text-start qpe-select-btn" @click="toggleQsel('bag')" :aria-expanded="qsel === 'bag'">
+  <span x-text="calc.concrete.bagLb + ' lb'"></span>
+</button>
+<div class="qpe-select-menu" x-show="qsel === 'bag'">
+<template x-for="lb in [40, 50, 60, 80]" :key="lb">
+<button type="button" class="qpe-select-opt" :class="calc.concrete.bagLb === lb ? 'active' : ''" @click="calc.concrete.bagLb = lb; closeQsel()">
+  <span x-text="lb + ' lb'"></span><i class="bi bi-check2" x-show="calc.concrete.bagLb === lb"></i>
+</button>
+</template>
+</div>
+</div>
+              </div>
+              <div class="col-6" x-show="calc.concrete.orderBy === 'bags'">
+                <label class="form-label small mb-1">Price per Bag ($)</label>
+                <input type="number" class="form-control form-control-sm" x-model.number="calc.concrete.pricePerBag" x-money="calc.concrete.pricePerBag" min="0" step="0.01" @focus="$event.target.select()" />
+              </div>
+            </div>
+            <div class="small text-muted mt-2" x-show="calc.concrete.orderBy === 'readymix'">
+              Ready-mix is rounded up to the next 0.1 cu yd. Many suppliers add a short-load fee under about 4 cu yd.
+            </div>
+          </div>
+
+          <!-- Multi-line calculators (fence, roofing, drywall, ...; see js/calculators.js) -->
+          <div x-show="isGenericCalc()">
+            <div class="small text-muted mb-2" x-text="calcDef() ? calcDef().hint : ''"></div>
+            <div class="row g-2">
+              <template x-for="f in (calcDef() ? calcDef().inputs : [])" :key="calcTab + f.key">
+                <div class="col-6">
+                  <label class="form-label small mb-1" x-text="f.label"></label>
+                  <template x-if="f.type === 'select'">
+                    <div class="qpe-select" @click.outside="closeQsel('g-' + calcTab + f.key)" @keydown.escape.stop="closeQsel('g-' + calcTab + f.key)">
+<button type="button" class="form-select form-select-sm text-start qpe-select-btn" @click="toggleQsel('g-' + calcTab + f.key)" :aria-expanded="qsel === 'g-' + calcTab + f.key">
+  <span x-text="((f.options.find(o => String(o.v) === String(calc[calcTab][f.key]))) || {}).label"></span>
+</button>
+<div class="qpe-select-menu" x-show="qsel === 'g-' + calcTab + f.key">
+<template x-for="o in f.options" :key="o.v">
+<button type="button" class="qpe-select-opt" :class="String(calc[calcTab][f.key]) === String(o.v) ? 'active' : ''" @click="calc[calcTab][f.key] = o.v; closeQsel()">
+  <span x-text="o.label"></span><i class="bi bi-check2" x-show="String(calc[calcTab][f.key]) === String(o.v)"></i>
+</button>
+</template>
+</div>
+</div>
+                  </template>
+                  <template x-if="f.type !== 'select'">
+                    <input type="number" class="form-control form-control-sm"
+                      x-model.number="calc[calcTab][f.key]"
+                      min="0" :step="f.step || 'any'" inputmode="decimal" @focus="$event.target.select()" />
+                  </template>
+                </div>
+              </template>
+            </div>
+
+            <div class="mt-3">
+              <div class="text-muted small fw-semibold mb-1">What to order</div>
+              <div x-show="calcLines().length === 0" class="small text-muted border rounded p-2">
+                Enter the dimensions above to see quantities.
+              </div>
+              <template x-for="l in calcLines()" :key="calcTab + l.key">
+                <div class="border rounded p-2 mb-2">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                      <div class="fw-semibold" x-text="l.name"></div>
+                      <div class="small text-muted" x-show="l.note" x-text="l.note"></div>
+                    </div>
+                    <div class="text-end text-nowrap">
+                      <span class="fw-bold" x-text="l.qty"></span>
+                      <span class="small text-muted" x-text="l.qty === 1 ? l.unit.replace(/s$/, '') : l.unit"></span>
+                    </div>
+                  </div>
+                  <div class="d-flex align-items-center gap-2 mt-2">
+                    <div class="input-group input-group-sm" style="max-width:9.5rem;">
+                      <span class="input-group-text">$ / ea</span>
+                      <input type="number" class="form-control"
+                        x-model.number="calc[calcTab].prices[l.key]" x-money="calc[calcTab].prices[l.key]"
+                        min="0" step="0.01" @focus="$event.target.select()" />
+                    </div>
+                    <div class="small ms-auto text-nowrap" x-text="fmt(l.qty * calcLinePrice(l))"></div>
+                    <button type="button" class="btn btn-sm flex-shrink-0"
+                      :class="calcAddedKey === calcTab + ':' + l.key ? 'btn-outline-success' : 'btn-success'"
+                      @click="addCalcLine(l)" :aria-label="'Add ' + l.name + ' to Materials'">
+                      <i class="bi" :class="calcAddedKey === calcTab + ':' + l.key ? 'bi-check2' : 'bi-plus-circle'"></i>
+                    </button>
+                  </div>
+                </div>
+              </template>
+              <button type="button" class="btn btn-success btn-sm w-100"
+                x-show="calcLines().length" @click="addAllCalcLines()">
+                <i class="bi bi-plus-circle me-1"></i>Add all to Materials
+              </button>
             </div>
           </div>
 
           <!-- Result row -->
-          <div class="border rounded p-2 mt-3 bg-light">
+          <div class="border rounded p-2 mt-3 bg-light" x-show="!isGenericCalc()">
             <div class="d-flex align-items-center justify-content-between gap-2">
               <div>
                 <div class="text-muted small">Result</div>
@@ -1569,10 +1907,26 @@
     @keydown.window.enter="if (confirmMessage) { $event.preventDefault(); confirmYes(); }">
     <div class="card shadow-lg mx-3" style="width:100%; max-width:400px;">
       <div class="card-body py-4 px-4">
-        <p class="mb-4" x-text="confirmMessage"></p>
+        <p class="mb-4" style="white-space: pre-line;" x-text="confirmMessage"></p>
         <div class="d-flex gap-2 justify-content-end">
           <button class="btn btn-outline-secondary" @click="confirmNo()">No</button>
-          <button class="btn btn-primary" @click="confirmYes()">Yes</button>
+          <button class="btn btn-success px-4" @click="confirmYes()">Yes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notice dialog (app-styled replacement for window.alert) -->
+  <div x-show="noticeMessage"
+    class="position-fixed top-0 start-0 w-100 h-100 modal-overlay"
+    style="z-index:2100; background:rgba(0,0,0,0.55);"
+    @keydown.window.escape="if (noticeMessage) { $event.preventDefault(); noticeOk(); }"
+    @keydown.window.enter="if (noticeMessage) { $event.preventDefault(); noticeOk(); }">
+    <div class="card shadow-lg mx-3" style="width:100%; max-width:400px;" role="alertdialog" aria-live="assertive">
+      <div class="card-body py-4 px-4">
+        <p class="mb-4" style="white-space: pre-line;" x-text="noticeMessage"></p>
+        <div class="d-flex justify-content-end">
+          <button class="btn btn-success px-4" @click="noticeOk()">OK</button>
         </div>
       </div>
     </div>
